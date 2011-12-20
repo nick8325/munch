@@ -1,0 +1,9 @@
+* Longest prefix error messages (do we want to eagerly prune?)
+* Partial input: "checkpoint" combinator, More constructor in result
+* Look at core file for "infinite list of ("---with checkpoint stuff,
+  doesn't work so well
+* Find a modular way to write these combinators so I don't have to
+  muck around with so much stuff every time I want to add a new
+  feature
+* Make it so I can write one parser and benchmark it on NotParsec,
+  Parsec and AttoParsec
