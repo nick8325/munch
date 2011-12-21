@@ -1,4 +1,5 @@
-module Parsec(module Prim, module Common) where
+module Parsec(module Base, module Prim, module Common) where
 
+import Base
 import Prim
 import Common
