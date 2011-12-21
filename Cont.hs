@@ -16,8 +16,8 @@ newtype Parsec a b = Parsec
 
 type Reply a = [Error] -> Result a
 
-data Result a = Ok a | Error [Error]
-data Error = Expected String | Message String
+data Result a = Ok a | Error [Error] deriving Show
+data Error = Expected String | Message String deriving Show
 
 errorMsg = Message
 expectedMsg = Expected
