@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes, BangPatterns, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, UndecidableInstances, TypeFamilies #-}
+{-# LANGUAGE Rank2Types, TypeFamilies #-}
 module Prim where
 
 import Base
@@ -8,11 +8,24 @@ import Data.List
 
 -- Parser type and monad instances
 
-newtype Parsec a b = Parsec
-  { runParsec :: forall c.
+newtype Parsec a b = Parsec (forall c. Inner a b c)
+
+type Inner a b c =
                  (b -> Reply c -> a -> Reply c) -- ok: success
               -> Reply c                        -- err: backtracking failure
-              -> a -> Reply c }
+              -> a -> Reply c
+
+{-# INLINE eta #-}
+eta :: Inner a b c -> Inner a b c
+eta p = \ok err inp exp -> p ok err inp exp
+
+{-# INLINE parsec #-}
+parsec :: (forall c. Inner a b c) -> Parsec a b
+parsec p = Parsec (eta p)
+
+{-# INLINE runParsec #-}
+runParsec :: Parsec a b -> Inner a b c
+runParsec (Parsec p) = eta p
 
 type Reply a = [Error] -> Result a
 
@@ -24,25 +37,25 @@ expectedMsg = Expected
 
 {-# INLINE getInput #-}
 getInput :: Parsec a a
-getInput = Parsec (\ok err inp exp -> ok inp err inp exp)
+getInput = parsec (\ok err inp -> ok inp err inp)
 
 {-# INLINE putInput #-}
 putInput :: a -> Parsec a ()
-putInput inp = Parsec (\ok err _ exp -> ok () err inp exp)
+putInput inp = parsec (\ok err _ -> ok () err inp)
 
 {-# INLINE parseError #-}
 parseError :: [Error] -> Parsec a b
-parseError e = Parsec (\ok err inp exp -> err (e ++ exp))
+parseError e = parsec (\ok err inp exp -> err (e ++ exp))
 
 {-# INLINE parsecReturn #-}
-parsecReturn x = Parsec (\ok err inp exp -> ok x err inp exp)
+parsecReturn x = parsec (\ok -> ok x)
 
 {-# INLINE parsecBind #-}
-x `parsecBind` f = Parsec (\ok err inp exp -> runParsec x (\y err inp exp -> runParsec (f y) ok err inp exp) err inp exp)
+x `parsecBind` f = parsec (\ok -> runParsec x (\y -> runParsec (f y) ok))
 
 {-# INLINE parsecChoice #-}
-m1 `parsecChoice` m2 = Parsec (\ok err inp exp ->
-  runParsec m1 ok (\exp -> runParsec m2 ok err inp exp) inp exp)
+m1 `parsecChoice` m2 = parsec (\ok err inp ->
+  runParsec m1 ok (runParsec m2 ok err inp) inp)
 
 run :: Stream a => Parsec a b -> a -> Result b
 run p x = runParsec p ok err x []
@@ -51,8 +64,8 @@ run p x = runParsec p ok err x []
 
 {-# INLINE cut #-}
 cut :: Stream a => Parsec a ()
-cut = Parsec (\ok err inp exp -> ok () Error inp [])
+cut = parsec (\ok err inp exp -> ok () Error inp [])
 
 {-# INLINE cut' #-}
 cut' :: Stream a => Parsec a b -> Parsec a b
-cut' p = Parsec (\ok err inp exp -> runParsec p (\x _ inp' _ -> ok x err inp' []) err inp exp)
+cut' p = parsec (\ok err -> runParsec p (\x _ inp' _ -> ok x err inp' []) err)
