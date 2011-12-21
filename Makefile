@@ -9,13 +9,13 @@ all: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), $v$b $(if $(HCR), $v$
 run: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), run$v$b))
 runmy: $(foreach v, $(filter-out Parsec AttoParsec, $(VARIANTS)), $(foreach b, $(BENCHMARKS), run$v$b))
 
-run%: all
+%.run: %
 	./$* | grep '^benchmarking\|^collecting\|^mean:'
 
 IgnoreLabelsBrackets: GHC += -DIGNORE_LABELS
 
 define TEMPLATE
-%$b $(if $(HCR), %$b.hcr):: *.hs Makefile
+%$b $(if $(HCR), %$b.hcr):: $b.hs *.hs Makefile
 	ln -sf $$*.hs Prim.hs
 	ln -sf Run$$*.hs Run.hs
 	$(GHC) -fforce-recomp --make $b -o $$@
