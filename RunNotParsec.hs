@@ -4,10 +4,11 @@ import Parsec
 import Instances
 import Control.Applicative
 import Control.Monad
+import qualified Data.ByteString as BS
 
-type Parser = Parsec String
+type Parser = Parsec BS.ByteString
 
 go :: Show a => Parser a -> String -> IO ()
 go p name = do
-  file <- readFile name
+  file <- BS.readFile name
   print (show (run p file))
