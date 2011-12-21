@@ -121,3 +121,7 @@ satisfy p = do
   guard (p t)
   cut
   return t
+
+{-# INLINE char #-}
+char :: (Stream a, Token a ~ Char) => Char -> Parsec a Char
+char x = satisfy (== x) <?> show x
