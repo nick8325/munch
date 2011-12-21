@@ -28,4 +28,4 @@ $(foreach b, $(BENCHMARKS), $(eval $(TEMPLATE)))
 
 
 clean:
-	rm -f *Brackets *.hcr *.o *.hi Prim.hs Run.hs
+	rm -f *Brackets *Arith *RFC2616 *.hcr *.o *.hi Prim.hs Run.hs
