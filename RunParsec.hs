@@ -9,4 +9,4 @@ import Test
 
 type Parser = Parsec () BS.ByteString
 
-go = test BS.readFile (\p file -> parse p "" file)
+go = test (\p file -> parse p "" file)

@@ -3,10 +3,12 @@ module Run(module Control.Applicative, module Data.Attoparsec.Char8, go) where
 
 import Control.Applicative
 import Data.Attoparsec.Char8
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS
 import Test
 
-go = test BS.readFile f
+go = test f
   where
-    f p file = case parse p file of
-      Done _ x -> x
+    f p file = decode (parse p file)
+    decode (Done _ x) = Right x
+    decode (Fail _ xs x) = Left (xs, x)
+    decode (Partial f) = decode (f BS.empty)

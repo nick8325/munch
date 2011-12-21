@@ -10,4 +10,4 @@ import Test
 type Parser = Parsec BS.ByteString
 
 go :: Show a => Parser a -> String -> IO ()
-go = test BS.readFile run
+go = test run
