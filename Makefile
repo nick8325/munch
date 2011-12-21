@@ -2,7 +2,7 @@
 
 GHC = ghc -O -funfolding-use-threshold=1000
 VARIANTS = NotParsec AttoParsec Parsec NoMessages IgnoreLabels
-BENCHMARKS = Brackets
+BENCHMARKS = Brackets RFC2616
 
 all: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), $v$b $(if $(HCR), $v$b.hcr)))
 

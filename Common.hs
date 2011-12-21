@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE Rank2Types, TypeFamilies #-}
 module Common where
 
 import Control.Applicative
@@ -119,3 +119,15 @@ satisfy p = do
 {-# INLINE char #-}
 char :: (Stream a, Token a ~ Char) => Char -> Parsec a Char
 char x = satisfy (== x) <?> show x
+
+{-# INLINE prim #-}
+prim :: (forall b. i -> (a -> i -> b) -> b -> b) -> Parsec i a
+prim f = do
+  inp <- getInput
+  f inp (\x inp' -> do { putInput inp'; return x }) mzero
+
+{-# INLINE skip #-}
+skip :: (i -> i) -> Parsec i ()
+skip f = do
+  inp <- getInput
+  putInput (f inp)
