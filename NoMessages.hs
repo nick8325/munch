@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, TypeFamilies, CPP #-}
+{-# LANGUAGE Rank2Types, TypeFamilies #-}
 module Prim where
 
 import Base
@@ -17,7 +17,7 @@ type Inner a b c =
 
 {-# INLINE eta #-}
 eta :: Inner a b c -> Inner a b c
-eta p = \ok err inp exp -> p ok err inp exp
+eta p = \ok err inp -> p ok err inp
 
 {-# INLINE parsec #-}
 parsec :: (forall c. Inner a b c) -> Parsec a b
@@ -27,13 +27,12 @@ parsec p = Parsec (eta p)
 runParsec :: Parsec a b -> Inner a b c
 runParsec (Parsec p) = eta p
 
-type Reply a = [Error] -> Result a
+type Reply a = Result a
 
-data Result a = Ok a | Error [Error] deriving Show
-data Error = Expected String | Message String deriving Show
+data Result a = Ok a | Error deriving Show
 
-errorMsg = Message
-expectedMsg = Expected
+errorMsg = undefined
+expectedMsg = undefined
 
 {-# INLINE getInput #-}
 getInput :: Parsec a a
@@ -44,18 +43,8 @@ putInput :: a -> Parsec a ()
 putInput inp = parsec (\ok err _ -> ok () err inp)
 
 {-# INLINE parseError #-}
-parseError :: [Error] -> Parsec a b
-parseError e = parsec (\ok err inp exp -> err (e ++ exp))
-
-{-# INLINE (<?>) #-}
-infix 0 <?>
-(<?>) :: Parsec a b -> String -> Parsec a b
-#ifndef IGNORE_LABELS
-p <?> text = Parsec (\ok err inp exp ->
-  runParsec p ok err inp (expectedMsg text:exp))
-#else
-p <?> text = p
-#endif
+parseError :: c -> Parsec a b
+parseError e = parsec (\ok err inp -> err)
 
 {-# INLINE parsecReturn #-}
 parsecReturn x = parsec (\ok -> ok x)
@@ -68,14 +57,21 @@ m1 `parsecChoice` m2 = parsec (\ok err inp ->
   runParsec m1 ok (runParsec m2 ok err inp) inp)
 
 run :: Stream a => Parsec a b -> a -> Result b
-run p x = runParsec p ok err x []
-  where ok x _ _ _ = Ok x
+run p x = runParsec p ok err x
+  where ok x _ _ = Ok x
         err = Error
 
 {-# INLINE cut #-}
 cut :: Stream a => Parsec a ()
-cut = parsec (\ok err inp exp -> ok () Error inp [])
+cut = parsec (\ok err inp -> ok () Error inp)
 
 {-# INLINE cut' #-}
 cut' :: Stream a => Parsec a b -> Parsec a b
-cut' p = parsec (\ok err -> runParsec p (\x _ inp' _ -> ok x err inp' []) err)
+cut' p = parsec (\ok err -> runParsec p (\x _ inp' -> ok x err inp') err)
+
+{-# INLINE (<?>) #-}
+infix 0 <?>
+(<?>) :: Parsec a b -> String -> Parsec a b
+p <?> text = p
+
+

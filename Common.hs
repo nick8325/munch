@@ -91,12 +91,6 @@ skipSome p = p' where p' = p >> (p' `mplus` return ())
 skipMany :: Parsec a b -> Parsec a ()
 skipMany p = p' where p' = (p >> p') `mplus` return ()
 
-{-# INLINE (<?>) #-}
-infix 0 <?>
-(<?>) :: Parsec a b -> String -> Parsec a b
-p <?> text = Parsec (\ok err inp exp ->
-  runParsec p ok err inp (expectedMsg text:exp))
-
 {-# INLINE between #-}
 between :: Parsec a b -> Parsec a c -> Parsec a d -> Parsec a d
 between p q r = p *> r <* q

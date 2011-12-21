@@ -1,8 +1,10 @@
 .NOTPARALLEL:
 
-GHC=ghc -O -funfolding-use-threshold=1000
+GHC = ghc -O -funfolding-use-threshold=1000
 
-all: NotParsecBrackets AttoParsecBrackets ParsecBrackets
+all: NotParsecBrackets AttoParsecBrackets ParsecBrackets NoMessagesBrackets IgnoreLabelsBrackets
+
+IgnoreLabelsBrackets: GHC += -DIGNORE_LABELS
 
 %Brackets: *.hs
 	ln -sf $*.hs Prim.hs
