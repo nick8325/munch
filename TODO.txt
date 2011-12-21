@@ -5,6 +5,3 @@
   doesn't work so well
 * Think perhaps about splitting into finished and unfinished input for
   partiality
-* Add "fatal error" continuation for use with try;
-  remove dependency on Result type in Inner;
-  define cut' using try.

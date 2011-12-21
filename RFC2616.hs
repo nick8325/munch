@@ -40,7 +40,7 @@ data Header = Header {
     } deriving (Eq, Ord, Show)
 
 messageHeader :: Parser Header
-messageHeader = do
+messageHeader = checkpoint *> do
   header <- P.takeWhile (isToken . c2w) <* char8 ':' <* skipWhile (P8.isHorizontalSpace . c2w)
   body <- takeTill (P8.isEndOfLine . c2w) <* endOfLine
   bodies <- many $ skipSpaces *> takeTill (P8.isEndOfLine . c2w) <* endOfLine

@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, TypeFamilies, CPP, NoMonomorphismRestriction #-}
+{-# LANGUAGE Rank2Types, TypeFamilies, CPP #-}
 module Prim where
 
 import Base
@@ -11,13 +11,13 @@ import Data.List
 newtype Parsec a b = Parsec (forall c. Inner a b c)
 
 type Inner a b c =
-                 (b -> Reply c -> a -> Reply c) -- ok: success
-              -> Reply c                        -- err: backtracking failure
-              -> a -> Reply c
+                 (b -> Reply a c -> a -> Reply a c) -- ok: success
+              -> Reply a c                        -- err: backtracking failure
+              -> a -> Reply a c
 
 {-# INLINE eta #-}
 eta :: Inner a b c -> Inner a b c
-eta p = \ok err inp exp -> p ok err inp exp
+eta p = \ok err inp more exp -> p ok err inp more exp
 
 {-# INLINE parsec #-}
 parsec :: (forall c. Inner a b c) -> Parsec a b
@@ -27,9 +27,14 @@ parsec p = Parsec (eta p)
 runParsec :: Parsec a b -> Inner a b c
 runParsec (Parsec p) = eta p
 
-type Reply a = [Error] -> Result a
+type Reply a b = (a -> Result a b) -> [Error] -> Result a b
 
-data Result a = Ok a | Error [Error] deriving Show
+data Result a b = Ok b | Error [Error] | More (a -> Result a b)
+instance Show b => Show (Result a b) where
+  show = show . f
+    where f (Ok x) = Right x
+          f (Error xs) = Left xs
+          f (More x) = Left [Message "more"]
 data Error = Expected String | Message String deriving Show
 
 errorMsg = Message
@@ -45,14 +50,14 @@ putInput inp = parsec (\ok err _ -> ok () err inp)
 
 {-# INLINE parseError #-}
 parseError :: [Error] -> Parsec a b
-parseError e = parsec (\ok err inp exp -> err (e ++ exp))
+parseError e = parsec (\ok err inp more exp -> err more (e ++ exp))
 
 {-# INLINE (<?>) #-}
 infix 0 <?>
 (<?>) :: Parsec a b -> String -> Parsec a b
 #ifndef IGNORE_LABELS
-p <?> text = Parsec (\ok err inp exp ->
-  runParsec p ok err inp (expectedMsg text:exp))
+p <?> text = Parsec (\ok err inp more exp ->
+  runParsec p ok err inp more (expectedMsg text:exp))
 #else
 p <?> text = p
 #endif
@@ -67,17 +72,17 @@ x `parsecBind` f = parsec (\ok -> runParsec x (\y -> runParsec (f y) ok))
 m1 `parsecChoice` m2 = parsec (\ok err inp ->
   runParsec m1 ok (runParsec m2 ok err inp) inp)
 
-run :: Stream a => Parsec a b -> a -> Result b
-run p x = runParsec p ok err x []
-  where ok x _ _ _ = Ok x
-        err = Error
+run :: Parsec a b -> a -> Result a b
+run p x = runParsec p ok err x (run p) []
+  where ok x _ _ _ _ = Ok x
+        err _ = Error
 
 {-# INLINE cut #-}
-cut :: Stream a => Parsec a ()
-cut = parsec (\ok err inp exp -> ok () Error inp [])
+cut :: Parsec a ()
+cut = parsec (\ok err inp more exp -> ok () (const Error) inp more [])
 
-{-# INLINE cut' #-}
-cut' :: Stream a => Parsec a b -> Parsec a b
-cut' p = parsec (\ok err -> runParsec p (\x _ inp' _ -> ok x err inp' []) err)
-
-checkpoint = return ()
+{-# INLINE checkpoint #-}
+checkpoint :: Parsec a ()
+checkpoint = parsec (\ok err inp more exp ->
+  let go inp = ok () err inp go exp
+  in go inp)

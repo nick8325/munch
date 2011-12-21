@@ -1,6 +1,6 @@
 {-# LANGUAGE Rank2Types, NoMonomorphismRestriction #-}
 module Run(module Control.Applicative, module Control.Monad, module Text.Parsec,
-           Parser, go, skipWhile, string, takeWhile, takeTill, takeWhile1, char8, endOfLine) where
+           Parser, go, skipWhile, string, takeWhile, takeTill, takeWhile1, char8, endOfLine, checkpoint) where
 
 import Prelude hiding (takeWhile)
 import Control.Applicative hiding ((<|>), many, optional)
@@ -55,3 +55,5 @@ char8 c = satisfy (== c)
 
 endOfLine :: Parser ()
 endOfLine = (char8 '\n' >> return ()) <|> (char8 '\r' >> char8 '\n' >> return ())
+
+checkpoint = return ()

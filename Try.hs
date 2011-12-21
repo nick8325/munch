@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, TypeFamilies, CPP #-}
+{-# LANGUAGE Rank2Types, TypeFamilies, CPP, NoMonomorphismRestriction #-}
 module Prim where
 
 import Base
@@ -80,3 +80,5 @@ cut = parsec (\ok err fatal inp exp -> ok () fatal fatal inp [])
 {-# INLINE try #-}
 try :: Parsec a b -> Parsec a b
 try p = parsec (\ok err fatal -> runParsec p ok err err)
+
+checkpoint = return ()

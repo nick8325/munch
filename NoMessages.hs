@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, TypeFamilies #-}
+{-# LANGUAGE Rank2Types, TypeFamilies, NoMonomorphismRestriction #-}
 module Prim where
 
 import Base
@@ -75,3 +75,4 @@ infix 0 <?>
 p <?> text = p
 
 
+checkpoint = return ()

@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, OverloadedStrings #-}
+{-# LANGUAGE TupleSections, OverloadedStrings, NoMonomorphismRestriction #-}
 module Run(module Parsec, module Instances, module Control.Applicative, module Control.Monad, Parser,
            go, skipWhile, string, takeWhile, takeTill, takeWhile1, char8, endOfLine) where
 
