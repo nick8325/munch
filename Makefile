@@ -2,15 +2,15 @@
 
 GHC = ghc -O -funfolding-use-threshold=1000
 VARIANTS = NotParsec AttoParsec Parsec NoMessages IgnoreLabels
-BENCHMARKS = Brackets RFC2616
+BENCHMARKS = Brackets RFC2616 Arith
 
 all: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), $v$b $(if $(HCR), $v$b.hcr)))
 
 run: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), run$v$b))
 runmy: $(foreach v, $(filter-out Parsec AttoParsec, $(VARIANTS)), $(foreach b, $(BENCHMARKS), run$v$b))
 
-run%: %
-	./$@
+run%: all %
+	./$* | grep '^benchmarking\|^collecting\|^mean:'
 
 IgnoreLabelsBrackets: GHC += -DIGNORE_LABELS
 

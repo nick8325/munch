@@ -5,7 +5,7 @@ module Run(module Control.Applicative, module Control.Monad, module Text.Parsec,
 import Prelude hiding (takeWhile)
 import Control.Applicative hiding ((<|>), many, optional)
 import Control.Monad
-import Text.Parsec hiding (string)
+import Text.Parsec hiding (string, chainl1)
 import qualified Data.ByteString.Char8 as BS
 import Test
 
