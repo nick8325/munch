@@ -1,0 +1,3 @@
+[submodule "testdata"]
+	path = testdata
+	url = git://github.com/nick8325/munch-testdata.git
