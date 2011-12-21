@@ -1,7 +1,7 @@
 .NOTPARALLEL:
 
 GHC = ghc -O -funfolding-use-threshold=1000
-VARIANTS = NotParsec AttoParsec Parsec NoMessages IgnoreLabels
+VARIANTS = Munch AttoParsec Parsec NoMessages IgnoreLabels
 BENCHMARKS = Brackets RFC2616 Arith
 
 all: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), $v$b $(if $(HCR), $v$b.hcr)))
