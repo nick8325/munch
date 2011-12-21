@@ -6,6 +6,12 @@ BENCHMARKS = Brackets
 
 all: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), $v$b $(if $(HCR), $v$b.hcr)))
 
+run: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), run$v$b))
+runmy: $(foreach v, $(filter-out Parsec AttoParsec, $(VARIANTS)), $(foreach b, $(BENCHMARKS), run$v$b))
+
+run%: %
+	./$@
+
 IgnoreLabelsBrackets: GHC += -DIGNORE_LABELS
 
 define TEMPLATE
