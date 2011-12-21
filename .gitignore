@@ -1,0 +1,6 @@
+*.hi
+*.o
+*.hcr
+Run.hs
+Prim.hs
+*Brackets
