@@ -10,6 +10,8 @@ import Data.Word
 import Foreign.Storable
 import Foreign.ForeignPtr
 import qualified Data.Text as T
+import Data.Char
+import GHC.Base(unsafeChr)
 
 instance Stream BS.ByteString where
   type Token BS.ByteString = Char
@@ -39,3 +41,25 @@ instance Stream [a] where
   {-# INLINE primToken #-}
   primToken [] _ err _ = err
   primToken (x:xs) ok _ _ = ok xs x
+
+class UnboxMaybe a where
+  type UnboxedMaybe a
+  unbox :: Maybe a -> UnboxedMaybe a
+  box :: UnboxedMaybe a -> Maybe a
+
+instance UnboxMaybe Char where
+  type UnboxedMaybe Char = Int
+  {-# INLINE unbox #-}
+  unbox Nothing = maxBound
+  unbox (Just x) = ord x
+  {-# INLINE box #-}
+  box x | x == maxBound = Nothing
+        | otherwise = Just (unsafeChr x)
+
+data Peek a = Peek !(UnboxedMaybe a) a
+
+-- instance (Stream a, UnboxMaybe (Token a)) => Stream (Peek a) where
+--   type Token (Peek a) = Token a
+--   {-# INLINE primToken #-}
+--   primToken (Peek x xs) ok err fail =
+--     primToken -- ?????????
