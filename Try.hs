@@ -11,14 +11,14 @@ import Data.List
 newtype Parsec a b = Parsec (forall c. Inner a b c)
 
 type Inner a b c =
-                 (b -> Reply c -> Reply c -> a -> Reply c) -- ok: success
+                 Reply c                        -- fatal: non-backtracking failure
+              -> (b -> Reply c -> a -> Reply c) -- ok: success
               -> Reply c                        -- err: backtracking failure
-              -> Reply c                        -- fatal: non-backtracking failure
               -> a -> Reply c
 
 {-# INLINE eta #-}
 eta :: Inner a b c -> Inner a b c
-eta p = \ok err fatal inp exp -> p ok err fatal inp exp
+eta p = \fatal ok err inp exp -> p fatal ok err inp exp
 
 {-# INLINE parsec #-}
 parsec :: (forall c. Inner a b c) -> Parsec a b
@@ -38,47 +38,47 @@ expectedMsg = Expected
 
 {-# INLINE getInput #-}
 getInput :: Parsec a a
-getInput = parsec (\ok err fatal inp -> ok inp err fatal inp)
+getInput = parsec (\fatal ok err inp -> ok inp err inp)
 
 {-# INLINE putInput #-}
 putInput :: a -> Parsec a ()
-putInput inp = parsec (\ok err fatal _ -> ok () err fatal inp)
+putInput inp = parsec (\fatal ok err _ -> ok () err inp)
 
 {-# INLINE parseError #-}
 parseError :: [Error] -> Parsec a b
-parseError e = parsec (\ok err fatal inp exp -> err (e ++ exp))
+parseError e = parsec (\fatal ok err inp exp -> err (e ++ exp))
 
 {-# INLINE (<?>) #-}
 infix 0 <?>
 (<?>) :: Parsec a b -> String -> Parsec a b
 #ifndef IGNORE_LABELS
-p <?> text = Parsec (\ok err fatal inp exp ->
-  runParsec p ok err fatal inp (expectedMsg text:exp))
+p <?> text = Parsec (\fatal ok err inp exp ->
+  runParsec p fatal ok err inp (expectedMsg text:exp))
 #else
 p <?> text = p
 #endif
 
 {-# INLINE parsecReturn #-}
-parsecReturn x = parsec (\ok -> ok x)
+parsecReturn x = parsec (\fatal ok -> ok x)
 
 {-# INLINE parsecBind #-}
-x `parsecBind` f = parsec (\ok -> runParsec x (\y -> runParsec (f y) ok))
+x `parsecBind` f = parsec (\fatal ok -> runParsec x fatal (\y -> runParsec (f y) fatal ok))
 
 {-# INLINE parsecChoice #-}
-m1 `parsecChoice` m2 = parsec (\ok err fatal inp ->
-  runParsec m1 ok (runParsec m2 ok err fatal inp) fatal inp)
+m1 `parsecChoice` m2 = parsec (\fatal ok err inp ->
+  runParsec m1 fatal ok (runParsec m2 fatal ok err inp) inp)
 
 run :: Parsec a b -> a -> Result b
-run p x = runParsec p ok err err x []
-  where ok x _ _ _ _ = Ok x
+run p x = runParsec p err ok err x []
+  where ok x _ _ _ = Ok x
         err = Error
 
 {-# INLINE cut #-}
 cut :: Parsec a ()
-cut = parsec (\ok err fatal inp exp -> ok () fatal fatal inp [])
+cut = parsec (\fatal ok err inp exp -> ok () fatal inp [])
 
 {-# INLINE try #-}
 try :: Parsec a b -> Parsec a b
-try p = parsec (\ok err fatal -> runParsec p ok err err)
+try p = parsec (\fatal ok err -> runParsec p err ok err)
 
 checkpoint = return ()
