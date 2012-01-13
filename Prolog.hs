@@ -1,7 +1,8 @@
-module Prolog(parser) where
+module Main where
 
 import Data.Char
 import Run
+import Control.Monad(liftM2)
 
 data Expr = Var Char | Fun Char [Expr]
 
@@ -13,7 +14,7 @@ satisfy_ p = satisfy p >> return ()
 {-# INLINE spaced #-}
 spaced p = aux where aux = (satisfy (== ' ') >> aux) <|> p
 {-# INLINE parens #-}
-parens p = between (satisfy (== '(')) (satisfy (== ')')) p <?> "bracketed expression"
+parens p = satisfy (== '(') *> p <* satisfy (== ')') <?> "bracketed expression"
 
 var = satisfy isUpper' <?> "variable"
 fun = satisfy isLower' <?> "function"
@@ -23,3 +24,5 @@ isLower' c = c >= 'a' && c <= 'z'
 
 args = spaced (parens (sepBy1 parser (spaced comma)) <|> return [])
 comma = satisfy (== ',') <?> "comma"
+
+main = go (skipMany parser) "testdata/prolog"

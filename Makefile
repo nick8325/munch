@@ -2,7 +2,7 @@
 
 GHC = ghc -O -funfolding-use-threshold=1000 -fllvm -rtsopts
 VARIANTS = Munch AttoParsec Parsec NoMessages IgnoreLabels Try More TryMore
-BENCHMARKS = Brackets RFC2616 Arith
+BENCHMARKS = Brackets RFC2616 Arith Prolog
 
 all: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), $v$b $(if $(HCR), $v$b.hcr)))
 
