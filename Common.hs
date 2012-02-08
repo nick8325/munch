@@ -114,6 +114,7 @@ satisfy p = do
   t <- next
   guard (p t)
   cut
+  checkpoint
   return t
 
 {-# INLINE char #-}
