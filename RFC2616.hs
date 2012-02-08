@@ -1,8 +1,8 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, BangPatterns #-}
 
 module Main where
 
-import Control.Applicative hiding (many)
+import Control.Applicative hiding (many, (<|>))
 import Run as P
 import Data.Attoparsec(notInClass)
 import qualified Data.Attoparsec.Char8 as P8
@@ -78,4 +78,8 @@ lookupHeader k = go
       | otherwise = go hs
     go _          = []
 
-main = go (skipMany request) "testdata/http"
+{-# INLINE count #-}
+count x = aux 0
+  where aux !n = (x >> aux (n+1)) <|> return n
+
+main = go (count request) "testdata/http"
