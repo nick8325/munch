@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, BangPatterns, MagicHash #-}
 module Instances where
 
 import Parsec
@@ -12,6 +12,10 @@ import Foreign.ForeignPtr
 import qualified Data.Text as T
 import Data.Char
 import GHC.Base(unsafeChr)
+import GHC.Prim
+import GHC.Ptr
+import GHC.ForeignPtr
+import GHC.Types
 
 instance Stream BS.ByteString where
   type Token BS.ByteString = Char
@@ -42,24 +46,29 @@ instance Stream [a] where
   primToken [] _ err _ = err
   primToken (x:xs) ok _ _ = ok xs x
 
-class UnboxMaybe a where
-  type UnboxedMaybe a
-  unbox :: Maybe a -> UnboxedMaybe a
-  box :: UnboxedMaybe a -> Maybe a
+data CharBS = CharBS !Char {-# UNPACK #-} !BS.ByteString
 
-instance UnboxMaybe Char where
-  type UnboxedMaybe Char = Int
-  {-# INLINE unbox #-}
-  unbox Nothing = maxBound
-  unbox (Just x) = ord x
-  {-# INLINE box #-}
-  box x | x == maxBound = Nothing
-        | otherwise = Just (unsafeChr x)
+instance Stream CharBS where
+  type Token CharBS = Char
+  
+  primToken (CharBS !c s) ok err _
+    | BS.null s = err
+    | otherwise =
+        (ok $! CharBS (nextChar (BSU.unsafeTail s)) (BSU.unsafeTail s)) c
 
-data Peek a = Peek !(UnboxedMaybe a) a
+{-# INLINE nextChar #-}
+nextChar :: BS.ByteString -> Char
+nextChar bs =
+  case BSI.toForeignPtr bs of
+    (ForeignPtr addr fp, I# ofs, I# len) ->
+       C# (nextChar# addr fp ofs len)
 
--- instance (Stream a, UnboxMaybe (Token a)) => Stream (Peek a) where
---   type Token (Peek a) = Token a
---   {-# INLINE primToken #-}
---   primToken (Peek x xs) ok err fail =
---     primToken -- ?????????
+unpackChar (C# x) = x
+
+{-# NOINLINE nextChar# #-}
+-- nextChar# :: Addr# -> ForeignPtrContents -> Int# -> Int# -> Char#
+nextChar# addr fp ofs 0# = unpackChar '\000'
+nextChar# addr fp ofs _ =
+  unpackChar (BSI.inlinePerformIO $ 
+  withForeignPtr (ForeignPtr addr fp) $ \ptr ->  
+    fmap BSI.w2c (peekByteOff ptr (I# ofs)))
