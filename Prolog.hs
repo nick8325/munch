@@ -1,10 +1,12 @@
 module Main where
 
+import Prelude hiding (takeWhile)
 import Data.Char
+import qualified Data.ByteString.Char8 as BS
 import Run
 import Control.Monad(liftM2)
 
-data Expr = Var Char | Fun Char [Expr]
+data Expr = Var BS.ByteString | Fun BS.ByteString [Expr]
 
 parser :: Parser Expr
 parser = spaced (fmap Var var <|> liftM2 Fun fun args <|> parens parser)
@@ -16,8 +18,8 @@ spaced p = aux where aux = (satisfy (== ' ') >> aux) <|> p
 {-# INLINE parens #-}
 parens p = satisfy (== '(') *> p <* satisfy (== ')') <?> "bracketed expression"
 
-var = satisfy isUpper' <?> "variable"
-fun = satisfy isLower' <?> "function"
+var = takeWhile1 isUpper' <?> "variable"
+fun = takeWhile1 isLower' <?> "function"
 
 isUpper' c = c >= 'A' && c <= 'Z'
 isLower' c = c >= 'a' && c <= 'z'
