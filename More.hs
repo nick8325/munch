@@ -12,7 +12,7 @@ newtype Parsec a b = Parsec (forall c. Inner a b c)
 
 type Inner a b c =
                  (b -> Reply a c -> a -> Reply a c) -- ok: success
-              -> Reply a c                          -- err: backtracking failure
+              -> Reply a c                        -- err: backtracking failure
               -> a -> Reply a c
 
 {-# INLINE eta #-}
@@ -27,10 +27,9 @@ parsec p = Parsec (eta p)
 runParsec :: Parsec a b -> Inner a b c
 runParsec (Parsec p) = eta p
 
-type Reply a b = More a b -> [Error] -> Result a b
-newtype More a b = K (More a b -> a -> Result a b)
+type Reply a b = (a -> Result a b) -> [Error] -> Result a b
 
-data Result a b = Ok b | Error [Error] | More (More a b)
+data Result a b = Ok b | Error [Error] | More (a -> Result a b)
 instance Show b => Show (Result a b) where
   show = show . f
     where f (Ok x) = Right x
@@ -74,10 +73,9 @@ m1 `parsecChoice` m2 = parsec (\ok err inp ->
   runParsec m1 ok (runParsec m2 ok err inp) inp)
 
 run :: Parsec a b -> a -> Result a b
-run p x = withMore (K withMore) x
+run p x = runParsec p ok err x (run p) []
   where ok x _ _ _ _ = Ok x
         err _ = Error
-        withMore more x = runParsec p ok err x more []
 
 {-# INLINE cut #-}
 cut :: Parsec a ()
@@ -86,6 +84,5 @@ cut = parsec (\ok err inp more exp -> ok () (const Error) inp more [])
 {-# INLINE checkpoint #-}
 checkpoint :: Parsec a ()
 checkpoint = parsec (\ok err inp more exp ->
-  let go more inp = ok () err inp more exp
-  in go (K go) inp)
-  --ok () err inp (K (\more inp -> ok () err inp more exp)) exp)
+  let go inp = ok () err inp go exp
+  in go inp)

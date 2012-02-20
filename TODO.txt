@@ -1,11 +1,10 @@
+* Rename to Pickles?
+
+
 * Add Yum to the mix.
 * Longest prefix error messages (do we want to eagerly prune?)
-* Partial input: "checkpoint" combinator, More constructor in result
-* Look at core file for "infinite list of ("---with checkpoint stuff,
-  doesn't work so well
-* Think perhaps about splitting into finished and unfinished input for
-  partiality
 * Add Parser a b -> a -> [(a,b)] and (a -> [(a, b)]) -> Parser a b functions.
 * Make it so that incremental parsing is free if the type doesn't
   support incrementality.
 * Look at code generation with Text.
+* Investigate why NoMessagesRFC2616 is slower than MunchRFC2616.
