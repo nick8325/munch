@@ -81,3 +81,4 @@ cut' :: Stream a => Parsec a b -> Parsec a b
 cut' p = parsec (\ok err -> runParsec p (\x _ inp' _ -> ok x err inp' []) err)
 
 checkpoint = return ()
+progress = return ()

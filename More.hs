@@ -86,3 +86,5 @@ checkpoint :: Parsec a ()
 checkpoint = parsec (\ok err inp more exp ->
   let go inp = ok () err inp go exp
   in go inp)
+
+progress = return ()

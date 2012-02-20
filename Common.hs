@@ -104,7 +104,7 @@ next :: Stream a => Parsec a (Token a)
 next = do
   inp <- getInput
   primToken inp
-    (\inp' x -> do { putInput inp'; return x })
+    (\inp' x -> do { putInput inp'; progress; return x })
     mzero
     fatalError
 

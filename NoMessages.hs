@@ -74,5 +74,5 @@ infix 0 <?>
 (<?>) :: Parsec a b -> String -> Parsec a b
 p <?> text = p
 
-
 checkpoint = return ()
+progress = return ()

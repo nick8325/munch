@@ -82,3 +82,4 @@ try :: Parsec a b -> Parsec a b
 try p = parsec (\fatal ok err -> runParsec p err ok err)
 
 checkpoint = return ()
+progress = return ()
