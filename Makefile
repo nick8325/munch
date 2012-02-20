@@ -22,6 +22,9 @@ define TEMPLATE
 ifdef HCR
 	$(GHC) -fforce-recomp -ddump-simpl -c $b.hs > $$@.hcr -dsuppress-module-prefixes -dsuppress-uniques -dsuppress-coercions
 endif
+ifdef STG
+	$(GHC) -fforce-recomp -ddump-stg -c $b.hs > $$@.stg -dsuppress-module-prefixes -dsuppress-uniques -dsuppress-coercions
+endif
 endef
 
 $(foreach b, $(BENCHMARKS), $(eval $(TEMPLATE)))
