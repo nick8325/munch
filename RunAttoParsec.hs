@@ -2,7 +2,7 @@
 module Run(module Control.Applicative, module Data.Attoparsec.Char8, go, checkpoint) where
 
 import Control.Applicative
-import Data.Attoparsec.Char8 hiding (notInClass, isDigit)
+import Data.Attoparsec.Char8 hiding (notInClass, isDigit, count)
 import qualified Data.ByteString.Char8 as BS
 import Test
 

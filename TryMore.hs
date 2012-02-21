@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, TypeFamilies, CPP #-}
+{-# LANGUAGE Rank2Types, TypeFamilies, CPP, NoMonomorphismRestriction #-}
 module Prim where
 
 import Base
