@@ -25,6 +25,9 @@ endif
 ifdef STG
 	$(GHC) -fforce-recomp -ddump-stg -c $b.hs > $$@.stg -dsuppress-module-prefixes -dsuppress-uniques -dsuppress-coercions
 endif
+ifdef CMM
+	$(GHC) -fforce-recomp -ddump-opt-cmm -c $b.hs > $$@.cmm -dsuppress-module-prefixes -dsuppress-uniques -dsuppress-coercions
+endif
 endef
 
 $(foreach b, $(BENCHMARKS), $(eval $(TEMPLATE)))
