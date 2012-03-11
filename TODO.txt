@@ -1,8 +1,5 @@
-* Rename to Pickles?
-
-
-* Add Yum to the mix.
-* Longest prefix error messages (do we want to eagerly prune?)
+* Make it modular?
+* Add front token to parser type?
 * Add Parser a b -> a -> [(a,b)] and (a -> [(a, b)]) -> Parser a b functions.
 * Make it so that incremental parsing is free if the type doesn't
   support incrementality.

@@ -11,7 +11,7 @@ import Test
 
 type Parser = Parsec BS.ByteString ()
 
-go = test (\p file -> parse p "" file)
+go = test (\p file -> parse (p <* eof) "" file)
 
 {-# INLINE prim #-}
 prim :: (forall b. BS.ByteString -> (a -> BS.ByteString -> b) -> b -> b) -> Parser a

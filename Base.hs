@@ -8,6 +8,7 @@ import Data.List
 class Stream a where
   type Token a
   primToken :: a -> (a -> Token a -> b) -> b -> (String -> b) -> b
+  pos :: a -> Int
 
 -- Reporting errors
 

@@ -81,5 +81,8 @@ cut = parsec (\fatal ok err inp exp -> ok () fatal inp [])
 try :: Parsec a b -> Parsec a b
 try p = parsec (\fatal ok err -> runParsec p err ok err)
 
+{-# INLINE cut' #-}
+cut' p = try (p <* cut)
+
 checkpoint = return ()
 progress = return ()

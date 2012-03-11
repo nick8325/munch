@@ -24,6 +24,7 @@ instance Stream BS.ByteString where
     case BS.uncons bs of
       Nothing -> err
       Just (c, cs) -> ok cs c
+  pos = BS.length
 
 instance Stream T.Text where
   type Token T.Text = Char
@@ -46,7 +47,9 @@ instance Stream [a] where
   primToken [] _ err _ = err
   primToken (x:xs) ok _ _ = ok xs x
 
-data CharBS = CharBS !Char {-# UNPACK #-} !BS.ByteString
+data CharBS = CharBS Char {-# UNPACK #-} !BS.ByteString
+
+pack bs = CharBS (nextChar bs) bs
 
 instance Stream CharBS where
   type Token CharBS = Char
