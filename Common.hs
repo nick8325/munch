@@ -109,11 +109,11 @@ next = do
     fatalError
 
 {-# INLINE satisfy #-}
-satisfy :: Stream a => (Token a -> Bool) -> Parsec a (Token a)
+satisfy :: (Stream a, Token a ~ Char) => (Token a -> Bool) -> Parsec a (Token a)
 satisfy p = do
   t <- next
   guard (p t)
-  -- cut
+  cut
   checkpoint
   return t
 

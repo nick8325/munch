@@ -13,7 +13,7 @@ import Test
 type Parser = Parsec BS.ByteString
 
 go :: Show a => Parser a -> String -> IO ()
-go = test (\p -> run (p <* eof))
+go = test run
 
 {-# INLINE skipWhile #-}
 skipWhile :: (Char -> Bool) -> Parser ()
@@ -26,19 +26,17 @@ string s = prim (\inp ok err->
     (xs, ys) | xs == s -> ok xs ys
     _ -> err) <* cut
 
-{-# INLINE takeWhile1 #-}
-takeWhile1 p = do
-  x <- prim (\inp ok err -> case BS.uncons inp of { Nothing -> err; Just (x, _) -> ok x inp })
-  guard (p x)
-  takeWhile p
+{-# INLINE takeWhile #-}
+takeWhile p = takeWhile1 p <|> return BS.empty
 
 {-# INLINE takeTill #-}
 takeTill p = takeWhile (not . p)
 
-{-# INLINE takeWhile #-}
-takeWhile p = prim (\inp ok err ->
+{-# INLINE takeWhile1 #-}
+takeWhile1 p = prim (\inp ok err ->
   case BS.span p inp of
-    (xs, ys) -> ok xs ys)
+    (xs, ys) | not (BS.null xs) -> ok xs ys
+    _ -> err) <* cut
 
 char8 c = satisfy (== c)
 
