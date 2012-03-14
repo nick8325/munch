@@ -13,7 +13,7 @@ import Test
 type Parser = Parsec BS.ByteString
 
 go :: Show a => Parser a -> String -> IO ()
-go = test run
+go = test (\p x -> run (p <* eof) x)
 
 {-# INLINE skipWhile #-}
 skipWhile :: (Char -> Bool) -> Parser ()

@@ -24,6 +24,12 @@ instance Stream BS.ByteString where
     case BS.uncons bs of
       Nothing -> err
       Just (c, cs) -> ok cs c
+  {-# INLINE hd #-}
+  hd x =
+    case BS.uncons x of
+      Nothing -> '\000'
+      Just (c, _) -> c
+  append = BS.append
   pos = BS.length
 
 instance Stream T.Text where

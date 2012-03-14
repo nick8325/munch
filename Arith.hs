@@ -10,7 +10,7 @@ expr = chainl1 term ((+) <$ char '+' <|> (-) <$ char '-')
 
 term = chainl1 fact ((*) <$ char '*' <|> div <$ char '/')
 
-fact = fmap (fst . fromJust . BS.readInt) (takeWhile1 isDigit) <|> char '(' *> expr <* char ')'
+fact = checkpoint *> fmap (fst . fromJust . BS.readInt) (takeWhile1 isDigit) <|> char '(' *> expr <* char ')'
 
 {-# INLINE chainl1 #-}
 chainl1 p op = p >>= rest where

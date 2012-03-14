@@ -1,7 +1,7 @@
 .NOTPARALLEL:
 
 GHC = ghc -O -funfolding-creation-threshold=1000 -funfolding-use-threshold=1000 -fllvm -rtsopts
-VARIANTS = Munch AttoParsec Parsec NoMessages IgnoreLabels Try More TryMore Errors
+VARIANTS = Munch AttoParsec Parsec NoMessages IgnoreLabels Try More TryMore Errors Commit
 BENCHMARKS = Brackets RFC2616 Arith Prolog
 
 all: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), $v$b $(if $(HCR), $v$b.hcr)))

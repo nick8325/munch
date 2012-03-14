@@ -9,7 +9,7 @@ import Control.Monad(liftM2)
 data Expr = Var BS.ByteString | Fun BS.ByteString [Expr]
 
 parser :: Parser Expr
-parser = spaced (fmap Var var <|> liftM2 Fun fun args <|> parens parser)
+parser = checkpoint *> spaced (fmap Var var <|> liftM2 Fun fun args <|> parens parser)
 
 satisfy_ p = satisfy p >> return ()
 

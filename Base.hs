@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, FlexibleContexts #-}
 module Base where
 
 import Data.List
@@ -8,6 +8,8 @@ import Data.List
 class Stream a where
   type Token a
   primToken :: a -> (a -> Token a -> b) -> b -> (String -> b) -> b
+  hd :: a -> Token a
+  append :: a -> a -> a
   pos :: a -> Int
 
 -- Reporting errors

@@ -35,23 +35,23 @@ eof = do
 
 -- User state
 
-data UserState state stream = UserState { userState :: !state, userStream :: !stream }
+-- data UserState state stream = UserState { userState :: !state, userStream :: !stream }
 
-instance Stream a => Stream (UserState state a) where
-  type Token (UserState state a) = Token a
-  {-# INLINE primToken #-}
-  primToken (UserState state stream) ok err =
-    primToken stream (ok . UserState state) err
+-- instance Stream a => Stream (UserState state a) where
+--   type Token (UserState state a) = Token a
+--   {-# INLINE primToken #-}
+--   primToken (UserState state stream) ok err =
+--     primToken stream (ok . UserState state) err
 
-{-# INLINE getState #-}
-getState :: Stream a => Parsec (UserState state a) state
-getState = fmap userState getInput
+-- {-# INLINE getState #-}
+-- getState :: Stream a => Parsec (UserState state a) state
+-- getState = fmap userState getInput
 
-{-# INLINE putState #-}
-putState :: Stream a => state -> Parsec (UserState state a) ()
-putState state = do
-  input <- getInput
-  putInput input { userState = state }
+-- {-# INLINE putState #-}
+-- putState :: Stream a => state -> Parsec (UserState state a) ()
+-- putState state = do
+--   input <- getInput
+--   putInput input { userState = state }
 
 instance Stream a => Functor (Parsec a) where
   {-# INLINE fmap #-}
@@ -78,18 +78,18 @@ instance Stream a => Alternative (Parsec a) where
   {-# INLINE some #-}
   some p = do { x <- p; xs <- many p; return (x:xs) }
   {-# INLINE many #-}
-  many p = p' where p' = liftM2 (:) p p' <|> return []
+  many p = p' where p' = success $ liftM2 (:) p p' <|> return []
   -- Stack overflow-avoiding version:
   -- many p = liftM reverse (p' [])
   --   where p' !xs = do { x <- nonempty p; p' (x:xs) } `mplus` return xs
 
 {-# INLINE skipSome #-}
 skipSome :: Stream a => Parsec a b -> Parsec a ()
-skipSome p = p' where p' = p >> (p' `mplus` return ())
+skipSome p = p' where p' = p >> success (p' `mplus` return ())
 
 {-# INLINE skipMany #-}
 skipMany :: Stream a => Parsec a b -> Parsec a ()
-skipMany p = p' where p' = (p >> p') `mplus` return ()
+skipMany p = p' where p' = success $ (p >> p') `mplus` return ()
 
 {-# INLINE between #-}
 between :: Stream a => Parsec a b -> Parsec a c -> Parsec a d -> Parsec a d
@@ -111,10 +111,12 @@ next = do
 {-# INLINE satisfy #-}
 satisfy :: (Stream a, Token a ~ Char) => (Token a -> Bool) -> Parsec a (Token a)
 satisfy p = do
+  x <- peek
+  guard (p x)
   t <- next
-  guard (p t)
+  -- guard (p t)
   cut
-  checkpoint
+  -- checkpoint
   return t
 
 {-# INLINE char #-}
