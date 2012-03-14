@@ -82,4 +82,4 @@ success :: Parsec a b -> Parsec a b
 success p = parsec (\ok err inp -> runParsec p ok Error inp)
 
 peek :: Parsec a (Token a)
-peek = parsec (\ok err hd inp -> ok (inp `seq` hd) hd inp)
+peek = parsec (\ok err hd inp -> ok hd hd inp)
