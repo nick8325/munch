@@ -56,6 +56,9 @@ x `parsecBind` f = parsec (\ok -> runParsec x (\y -> runParsec (f y) ok))
 m1 `parsecChoice` m2 = parsec (\ok err inp ->
   runParsec m1 ok (runParsec m2 ok err inp) inp)
 
+{-# INLINE (<+>) #-}
+m1 <+> m2 = cut' (m1 `parsecChoice` m2)
+
 run :: Stream a => Parsec a b -> a -> Result b
 run p x = runParsec p ok err x
   where ok x _ _ = Ok x

@@ -11,13 +11,13 @@ import Data.List
 newtype Parsec a b = Parsec (forall c. Inner a b c)
 
 type Inner a b c =
-                 (b -> Token a -> a -> Reply c) -- ok: success
+                 (b -> a -> Reply c) -- ok: success
               -> Reply c                        -- err: backtracking failure
-              -> Token a -> a -> Reply c
+              -> a -> Reply c
 
 {-# INLINE eta #-}
 eta :: Inner a b c -> Inner a b c
-eta p = \ok err hd inp -> p ok err hd inp
+eta p = \ok err inp -> p ok err inp
 
 {-# INLINE parsec #-}
 parsec :: (forall c. Inner a b c) -> Parsec a b
@@ -36,15 +36,15 @@ expectedMsg = undefined
 
 {-# INLINE getInput #-}
 getInput :: Parsec a a
-getInput = parsec (\ok err hd inp -> ok inp hd inp)
+getInput = parsec (\ok err inp -> ok inp inp)
 
 {-# INLINE putInput #-}
 putInput :: Stream a => a -> Parsec a ()
-putInput inp = parsec (\ok err _ _ -> ok () (hd inp) inp)
+putInput inp = parsec (\ok err _ -> ok () inp)
 
 {-# INLINE parseError #-}
 parseError :: c -> Parsec a b
-parseError e = parsec (\ok err hd inp -> err)
+parseError e = parsec (\ok err inp -> err)
 
 {-# INLINE parsecReturn #-}
 parsecReturn x = parsec (\ok err -> ok x)
@@ -53,12 +53,12 @@ parsecReturn x = parsec (\ok err -> ok x)
 x `parsecBind` f = parsec (\ok err -> runParsec x (\y -> runParsec (f y) ok err) err)
 
 {-# INLINE parsecChoice #-}
-m1 `parsecChoice` m2 = parsec (\ok err hd inp ->
-  runParsec m1 ok (runParsec m2 ok err hd inp) hd inp)
+m1 `parsecChoice` m2 = parsec (\ok err inp ->
+  runParsec m1 ok (runParsec m2 ok err inp) inp)
 
 run :: Stream a => Parsec a b -> a -> Result b
-run p x = runParsec p ok err (hd x) x
-  where ok x _ _ = Ok x
+run p x = runParsec p ok err x
+  where ok x _ = Ok x
         err = Error
 
 {-# INLINE cut #-}
@@ -81,5 +81,5 @@ progress = return ()
 success :: Parsec a b -> Parsec a b
 success p = parsec (\ok err inp -> runParsec p ok Error inp)
 
-peek :: Parsec a (Token a)
-peek = parsec (\ok err hd inp -> ok hd hd inp)
+-- peek :: Parsec a (Token a)
+-- peek = parsec (\ok err hd inp -> ok hd hd inp)

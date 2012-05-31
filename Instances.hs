@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, BangPatterns, MagicHash #-}
+{-# LANGUAGE TypeFamilies, BangPatterns, MagicHash, FlexibleInstances #-}
 module Instances where
 
 import Parsec
@@ -47,11 +47,13 @@ instance Stream Chars where
   {-# INLINE primToken #-}
   primToken (Cons c cs) ok _ _ = ok cs c
 
-instance Stream [a] where
-  type Token [a] = a
+instance Stream [Char] where
+  type Token [Char] = Char
   {-# INLINE primToken #-}
   primToken [] _ err _ = err
   primToken (x:xs) ok _ _ = ok xs x
+  hd [] = '\000'
+  hd (x:xs) = x
 
 data CharBS = CharBS Char {-# UNPACK #-} !BS.ByteString
 
