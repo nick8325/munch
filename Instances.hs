@@ -55,17 +55,21 @@ instance Stream [Char] where
   hd [] = '\000'
   hd (x:xs) = x
 
-data CharBS = CharBS Char {-# UNPACK #-} !BS.ByteString
+data CharBS = CharBS {-# UNPACK #-} !Char {-# UNPACK #-} !BS.ByteString
 
 pack bs = CharBS (nextChar bs) bs
 
 instance Stream CharBS where
   type Token CharBS = Char
   
+  {-# INLINE primToken #-}
   primToken (CharBS !c s) ok err _
     | BS.null s = err
     | otherwise =
         (ok $! CharBS (nextChar (BSU.unsafeTail s)) (BSU.unsafeTail s)) c
+
+  {-# INLINE hd #-}
+  hd (CharBS !c _) = c
 
 {-# INLINE nextChar #-}
 nextChar :: BS.ByteString -> Char

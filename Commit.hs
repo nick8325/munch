@@ -81,5 +81,5 @@ progress = return ()
 success :: Parsec a b -> Parsec a b
 success p = parsec (\ok err inp -> runParsec p ok Error inp)
 
--- peek :: Parsec a (Token a)
--- peek = parsec (\ok err hd inp -> ok hd hd inp)
+peek :: Stream a => Parsec a (Token a)
+peek = parsec (\ok err inp -> ok (hd inp) inp)
