@@ -59,13 +59,14 @@ instance Stream [Char] where
 data CharBS = CharBS {-# UNPACK #-} !Char {-# UNPACK #-} !BS.ByteString
 
 pack bs = CharBS (nextChar bs) bs
+unpack (CharBS _ s) = s
 
 instance Stream CharBS where
   type Token CharBS = Char
   
   {-# INLINE primToken #-}
   primToken (CharBS !c s) ok err _
-    | BS.null s = err
+    | c == '\000' && BS.null s = err
     | otherwise =
         (ok $! CharBS (nextChar (BSU.unsafeTail s)) (BSU.unsafeTail s)) c
 

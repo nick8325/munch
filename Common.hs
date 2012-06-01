@@ -100,10 +100,8 @@ sepBy1 :: Stream a => Parsec a b -> Parsec a c -> Parsec a [b]
 sepBy1 it sep = liftM2 (:) it (many (sep >> it))
 
 {-# INLINE next #-}
-{-# INLINE next' #-}
-next, next' :: Stream a => Parsec a (Token a)
-next = next' { one = \t -> yum t, zero = block }
-next' = do
+next :: Stream a => Parsec a (Token a)
+next = do
   inp <- getInput
   primToken inp
     (\inp' x -> do { putInput inp'; progress; return x })

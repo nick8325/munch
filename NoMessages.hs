@@ -80,3 +80,5 @@ p <?> text = p
 checkpoint = return ()
 progress = return ()
 success = id
+
+peek = fmap hd getInput
