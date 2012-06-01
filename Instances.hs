@@ -33,6 +33,17 @@ instance Stream BS.ByteString where
   append = BS.append
   pos = BS.length
 
+  newtype Fun BS.ByteString a = FB (Addr# -> Any -> Int# -> Int# -> a)
+  {-# INLINE abs #-}
+  abs f =
+    FB (\addr fp ofs len ->
+      f (BSI.fromForeignPtr (ForeignPtr addr (unsafeCoerce fp)) (I# ofs) (I# len)))
+  {-# INLINE app #-}
+  app (FB f) bs =
+    case BSI.toForeignPtr bs of
+      (ForeignPtr addr fp, I# ofs, I# len) ->
+        f addr (unsafeCoerce fp) ofs len
+
 instance Stream T.Text where
   type Token T.Text = Char
   {-# INLINE primToken #-}
