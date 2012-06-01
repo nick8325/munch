@@ -102,7 +102,7 @@ sepBy1 it sep = liftM2 (:) it (many (sep >> it))
 {-# INLINE next #-}
 {-# INLINE next' #-}
 next, next' :: Stream a => Parsec a (Token a)
-next = next' { one = \t -> Yum t, zero = Block }
+next = next' { one = \t -> yum t, zero = block }
 next' = do
   inp <- getInput
   primToken inp

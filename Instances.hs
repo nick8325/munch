@@ -16,6 +16,7 @@ import GHC.Prim
 import GHC.Ptr
 import GHC.ForeignPtr
 import GHC.Types
+import Unsafe.Coerce
 
 instance Stream BS.ByteString where
   type Token BS.ByteString = Char
@@ -70,6 +71,17 @@ instance Stream CharBS where
 
   {-# INLINE hd #-}
   hd (CharBS !c _) = c
+
+  newtype Fun CharBS a = F (Char# -> Addr# -> Any -> Int# -> Int# -> a)
+  {-# INLINE abs #-}
+  abs f =
+    F (\x addr fp ofs len ->
+      f (CharBS (C# x) (BSI.fromForeignPtr (ForeignPtr addr (unsafeCoerce fp)) (I# ofs) (I# len))))
+  {-# INLINE app #-}
+  app (F f) (CharBS (C# x) bs) =
+    case BSI.toForeignPtr bs of
+      (ForeignPtr addr fp, I# ofs, I# len) ->
+        f x addr (unsafeCoerce fp) ofs len
 
 {-# INLINE nextChar #-}
 nextChar :: BS.ByteString -> Char

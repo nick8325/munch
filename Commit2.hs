@@ -6,6 +6,7 @@ import Control.Applicative
 import Control.Monad
 import Data.List
 import GHC.Exts
+import Prelude hiding (abs)
 
 -- Parser type and monad instances
 
@@ -14,87 +15,92 @@ data Parsec a b = Parsec { parser :: forall c. Inner a b c,
                            zero :: One b }
 
 type Inner a b c =
-                 (b -> Token a -> a -> Reply c) -- ok: success
-              -> Reply c             -- err: backtracking failure
-              -> Token a -> a -> Reply c
+                 (b -> Fun a (Reply c)) -- ok: success
+              -> Reply c                -- err: backtracking failure
+              -> Fun a (Reply c)
 
 {-# INLINE eta #-}
-eta :: Inner a b c -> Inner a b c
-eta p = \ok err hd inp -> p ok err hd inp
+eta :: Stream a => Inner a b c -> Inner a b c
+eta p = \ok err -> abs (\inp -> app (p ok err) inp)
+
+{-# INLINE case_ #-}
+case_ :: One a -> One a
+case_ x = \p y b e -> x p y b e
 
 {-# INLINE parsec #-}
-parsec :: (forall c. Inner a b c) -> (Token a -> One b) -> One b -> Parsec a b
-parsec p l z = Parsec (eta p) l z
+parsec :: Stream a => (forall c. Inner a b c) -> (Token a -> One b) -> One b -> Parsec a b
+parsec p l z = Parsec (eta p) (\x -> case_ (l x)) (case_ z)
 
 {-# INLINE runParsec #-}
-runParsec :: Parsec a b -> Inner a b c
+runParsec :: Stream a => Parsec a b -> Inner a b c
 runParsec (Parsec p _ _) = eta p
 
 type Reply a = Result a
 
 data Result a = Ok a | Error deriving Show
 
-data One a = Passive a | Yum a | Block | Err deriving Show
+type One a = forall b.
+     (a -> b) -- passive
+  -> (a -> b) -- yum
+  -> b        -- block
+  -> b        -- err
+  -> b
+{-# INLINE passive #-}
+{-# INLINE yum #-}
+passive, yum :: a -> One a
+passive x = \p _ _ _ -> p x
+yum x = \_ y _ _ -> y x
+{-# INLINE block #-}
+block = \_ _ b _ -> b
+{-# INLINE err #-}
+err = \_ _ _ e -> e
 
 errorMsg = undefined
 expectedMsg = undefined
 
 {-# INLINE getInput #-}
-getInput :: Parsec a a
-getInput = parsec (\ok err hd inp -> ok inp hd inp) (\_ -> Block) Block
+getInput :: Stream a => Parsec a a
+getInput = parsec (\ok err -> abs (\inp -> app (ok inp) inp)) (\_ -> block) block
 
 {-# INLINE putInput #-}
 putInput :: Stream a => a -> Parsec a ()
-putInput inp = parsec (\ok err _ _ -> ok () (hd inp) inp) (\_ -> Block) Block
+putInput inp = parsec (\ok err -> abs (\_ -> app (ok ()) inp)) (\_ -> block) block
 
 {-# INLINE parseError #-}
-parseError :: c -> Parsec a b
-parseError e = parsec (\ok err _ inp -> err) (\_ -> Err) Err
+parseError :: Stream a => c -> Parsec a b
+parseError e = parsec (\ok err -> abs (\inp -> err)) (\_ -> err) err
 
 {-# INLINE parsecReturn #-}
-parsecReturn x = parsec (\ok err -> ok x) (\_ -> Passive x) (Passive x)
+parsecReturn x = parsec (\ok err -> ok x) (\_ -> passive x) (passive x)
 
 {-# INLINE parsecBind #-}
 x `parsecBind` f =
   parsec (\ok err -> runParsec x (\y -> runParsec (f y) ok err) err)
-         (\t ->
-           case one x t of
-             Passive x -> one (f x) t
-             Yum x ->
-               case zero (f x) of
-                 Passive x -> Yum x
-                 x -> x
-             Block -> Block
-             Err -> Err)
-         (case zero x of
-             Passive x -> zero (f x)
-             Yum x -> error "oops"
-             Block -> Block
-             Err -> Err)
+         (\t p y b e ->
+           one x t
+             (\x -> one (f x) t p y b e)
+             (\x -> zero (f x) y y b e)
+             b e)
+         (\p y b e ->
+           zero x (\x -> zero (f x) p y b e)
+                  (\x -> error "oops") b e)
 
 {-# INLINE parsecChoice #-}
 m1 `parsecChoice` m2 =
-  parsec (\ok err hd ->
-           case (inline one m1 hd, inline one m2 hd) of
-             (Err, Err) -> \inp -> inline err
-             (_, Err) -> \inp -> inline runParsec m1 ok err hd inp
-             (Err, _) -> \inp -> inline runParsec m2 ok err hd inp
-             _ -> \inp -> inline runParsec m1 ok (runParsec m2 ok err hd inp) hd inp)
-         (\t ->
-           case one m1 t of
-             Passive x -> Passive x
-             Yum x -> Yum x
-             Block -> Block
-             Err -> one m2 t)
-         (case zero m1 of
-             Passive x -> Passive x
-             Yum x -> error "oops"
-             Block -> Block
-             Err -> zero m2)
+  parsec (\ok err -> abs (\inp ->
+           one m2 (hd inp)
+             (\_ -> runParsec m1 ok (runParsec m2 ok err `app` inp) `app` inp)
+             (\_ -> runParsec m1 ok (runParsec m2 ok err `app` inp) `app` inp)
+             (runParsec m1 ok (runParsec m2 ok err `app` inp) `app` inp)
+             (runParsec m1 ok err `app` inp)))
+         (\t p y b e ->
+           one m1 t p y b (one m2 t p y b e))
+         (\p y b e ->
+           zero m1 p (error "oops") b (zero m2 p y b e))
 
 run :: Stream a => Parsec a b -> a -> Result b
-run p x = runParsec p ok err (hd x) x
-  where ok x _ _ = Ok x
+run p x = runParsec p ok err `app` x
+  where ok x = abs (\_ -> Ok x)
         err = Error
 
 {-# INLINE cut #-}
@@ -114,8 +120,8 @@ checkpoint = return ()
 progress = return ()
 
 {-# INLINE success #-}
-success :: Parsec a b -> Parsec a b
-success p = parsec (\ok err hd inp -> runParsec p ok Error hd inp) (one p) (zero p)
+success :: Stream a => Parsec a b -> Parsec a b
+success p = parsec (\ok err -> abs (\inp -> runParsec p ok Error `app` inp)) (one p) (zero p)
 
 peek :: Stream a => Parsec a (Token a)
-peek = parsec (\ok err hd inp -> ok hd hd inp) Passive Block
+peek = parsec (\ok err -> abs (\inp -> ok (hd inp) `app` inp)) passive block
