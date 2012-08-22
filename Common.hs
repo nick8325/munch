@@ -115,6 +115,7 @@ satisfy p = do
   guard (p x)
   t <- next
   when (p '\000') $ guard (p t)
+  -- guard (p t)
   cut
   checkpoint
   return t

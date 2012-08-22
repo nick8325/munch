@@ -11,7 +11,7 @@ class Stream a where
   hd :: a -> Token a
   append :: a -> a -> a
   pos :: a -> Int
-  
+
   data Fun a :: * -> *
   abs :: (a -> b) -> Fun a b
   app :: Fun a b -> a -> b

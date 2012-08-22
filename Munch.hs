@@ -76,6 +76,10 @@ run p x = runParsec p ok err x []
 cut :: Stream a => Parsec a ()
 cut = parsec (\ok err inp exp -> ok () Error inp [])
 
+{-# INLINE peek #-}
+peek :: Stream a => Parsec a (Token a)
+peek = getInput `parsecBind` (parsecReturn . hd)
+
 {-# INLINE cut' #-}
 cut' :: Stream a => Parsec a b -> Parsec a b
 cut' p = parsec (\ok err -> runParsec p (\x _ inp' _ -> ok x err inp' []) err)

@@ -29,7 +29,7 @@ runParsec (Parsec p) = eta p
 
 type Reply a = Result a
 
-data Result a = Ok a | Error deriving Show
+data Result a = Ok a | Error deriving (Eq, Ord, Show)
 
 errorMsg = undefined
 expectedMsg = undefined

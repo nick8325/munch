@@ -1,6 +1,6 @@
 {-# LANGUAGE TupleSections, OverloadedStrings, NoMonomorphismRestriction #-}
 module Run(module Parsec, module Instances, module Control.Applicative, module Control.Monad, Parser,
-           go, skipWhile, string, takeWhile, takeTill, takeWhile1, char8, endOfLine) where
+           go) where --, skipWhile, string, takeWhile, takeTill, takeWhile1, char8, endOfLine) where
 
 import Prelude hiding (takeWhile)
 import Parsec
@@ -10,11 +10,11 @@ import Control.Monad
 import qualified Data.ByteString.Char8 as BS
 import Test
 
-type Parser = Parsec BS.ByteString
+type Parser = Parsec CharBS
 
 go :: Show a => Parser a -> String -> IO ()
-go = test (\p x -> run (p <* eof) x)
-
+go = test (\p x -> run (p <* eof) (pack x))
+{-
 {-# INLINE skipWhile #-}
 skipWhile :: (Char -> Bool) -> Parser ()
 skipWhile p = skip (BS.dropWhile p)
@@ -42,3 +42,4 @@ char8 c = satisfy (== c)
 
 endOfLine :: Parser ()
 endOfLine = (char8 '\n' >> return ()) <|> (char8 '\r' >> char8 '\n' >> return ())
+-}
