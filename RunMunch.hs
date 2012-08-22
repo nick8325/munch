@@ -10,10 +10,10 @@ import Control.Monad
 import qualified Data.ByteString.Char8 as BS
 import Test
 
-type Parser = Parsec CharBS
+type Parser = Parsec BS.ByteString -- CharBS
 
 go :: Show a => Parser a -> String -> IO ()
-go = test (\p x -> run (p <* eof) (pack x))
+go = test (\p x -> run (p <* eof) (x))
 {-
 {-# INLINE skipWhile #-}
 skipWhile :: (Char -> Bool) -> Parser ()
