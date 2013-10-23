@@ -113,11 +113,11 @@ satisfy :: (Stream a, Token a ~ Char) => (Token a -> Bool) -> Parsec a (Token a)
 satisfy p = do
   x <- peek
   guard (p x)
-  t <- next
-  guard (p t)
+  next
+  -- guard (p t)
   cut
   checkpoint
-  return t
+  return x
 
 {-# INLINE char #-}
 char :: (Stream a, Token a ~ Char) => Char -> Parsec a Char

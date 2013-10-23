@@ -10,8 +10,7 @@ import Prelude hiding (abs)
 
 -- Parser type and monad instances
 
-data Parsec a b = Parsec { parser :: forall c. Inner a b c,
-                           one :: Token a -> One b }
+newtype Parsec a b = Parsec { unParsec :: forall c. Token a -> One a b c }
 
 type Inner a b c =
                  (b -> Fun a (Reply c)) -- ok: success
@@ -23,73 +22,73 @@ eta :: Stream a => Inner a b c -> Inner a b c
 eta p = \ok err -> abs (\inp -> app (p ok err) inp)
 
 {-# INLINE case_ #-}
-case_ :: One a -> One a
+case_ :: Stream a => One a b c -> One a b c
 case_ x =
   case x of
-    Passive x -> Passive x
-    Block -> Block
-    Err -> Err
+    Passive (Ok x) -> Passive (Ok x)
+    Passive Error -> Passive Error
+    Block p -> Block (eta p)
 
 {-# INLINE parsec #-}
-parsec :: Stream a => (forall c. Inner a b c) -> (Token a -> One b) -> Parsec a b
-parsec p l = Parsec (eta p) (\x -> case_ (l x))
+parsec :: Stream a => (forall c. Token a -> One a b c) -> Parsec a b
+parsec p = Parsec (\t -> case_ (p t))
 
 {-# INLINE runParsec #-}
-runParsec :: Stream a => Parsec a b -> Inner a b c
-runParsec (Parsec p l) = eta p
-  -- \ok err -> abs (\inp ->
-  --   case l (hd inp) of
-  --     Err -> err
-  --     _ -> app (p ok err) inp)
+runParsec :: Stream a => Parsec a b -> Token a -> One a b c
+runParsec (Parsec p) = \t -> case_ (p t)
 
 type Reply a = Result a
 
 data Result a = Ok a | Error deriving Show
 
-data One a = Passive a | Block | Err
+data One a b c = Passive (Result b) | Block (Inner a b c)
 
 errorMsg = undefined
 expectedMsg = undefined
 
 {-# INLINE getInput #-}
 getInput :: Stream a => Parsec a a
-getInput = parsec (\ok err -> abs (\inp -> app (ok inp) inp)) (\_ -> Block)
+getInput = parsec (\_ -> Block (\ok err -> abs (\inp -> app (ok inp) inp)))
 
 {-# INLINE putInput #-}
 putInput :: Stream a => a -> Parsec a ()
-putInput inp = parsec (\ok err -> abs (\_ -> app (ok ()) inp)) (\_ -> Block)
+putInput inp = parsec (\_ -> Block (\ok err -> abs (\_ -> app (ok ()) inp)))
 
 {-# INLINE parseError #-}
 parseError :: Stream a => c -> Parsec a b
-parseError e = parsec (\ok err -> abs (\inp -> err)) (\_ -> Err)
+parseError e = parsec (\_ -> Passive Error)
 
 {-# INLINE parsecReturn #-}
-parsecReturn x = parsec (\ok err -> ok x) (\_ -> Passive x)
+parsecReturn x = parsec (\_ -> Passive (Ok x))
+
+{-# INLINE activate #-}
+activate x =
+  \ok err -> abs (\inp -> case runParsec x (hd inp) of
+                     Passive (Ok x) -> ok x `app` inp
+                     Passive Error -> err
+                     Block p -> p ok err `app` inp)
 
 {-# INLINE parsecBind #-}
 x `parsecBind` f =
-  parsec (\ok err -> abs (\inp -> runParsec x (\y -> runParsec (f y) ok err) err `app` inp))
-         (\t ->
-           case one x t of
-             Passive x -> one (f x) t
-             Block -> Block
-             Err -> Err)
+  parsec (\t ->
+           case runParsec x t of
+             Passive (Ok x) -> runParsec (f x) t
+             Passive Error -> Passive Error
+             Block p -> Block (\ok err -> abs (\inp -> p (\y -> activate (f y) ok err) err `app` inp)))
+
 
 {-# INLINE parsecChoice #-}
 m1 `parsecChoice` m2 =
-  parsec (\ok err -> abs (\inp ->
-           case (one m1 (hd inp), one m2 (hd inp)) of
-             (Err, _) -> runParsec m2 ok err `app` inp
-             (_, Err) -> runParsec m1 ok err `app` inp
-             -- Err -> runParsec m1 ok err `app` inp
-             _ -> runParsec m1 ok (runParsec m2 ok err `app` inp) `app` inp))
-         (\t ->
-           case one m1 t of
-             Err -> one m2 t
-             x -> x)
+  parsec (\t ->
+           case (runParsec m1 t, runParsec m2 t) of
+             (Passive (Ok x), _) -> Passive (Ok x)
+             (Passive Error, x) -> x
+             (x@Block{}, Passive Error) -> x
+             (Block p, Passive (Ok x)) -> Block (\ok err -> abs (\inp -> p ok (ok x `app` inp) `app` inp))
+             (Block p, Block q) -> Block (\ok err -> abs (\inp -> p ok (q ok err `app` inp) `app` inp)))
 
 run :: Stream a => Parsec a b -> a -> Result b
-run p x = runParsec p ok err `app` x
+run p x = activate p ok err `app` x
   where ok x = abs (\_ -> Ok x)
         err = Error
 
@@ -111,7 +110,10 @@ progress = return ()
 
 {-# INLINE success #-}
 success :: Stream a => Parsec a b -> Parsec a b
-success p = parsec (\ok err -> abs (\inp -> runParsec p ok Error `app` inp)) (one p)
+success x = parsec (\t ->
+                     case runParsec x t of
+                       Block p -> Block (\ok err -> abs (\inp -> p ok Error `app` inp))
+                       y -> y)
 
 peek :: Stream a => Parsec a (Token a)
-peek = parsec (\ok err -> abs (\inp -> ok (hd inp) `app` inp)) Passive
+peek = parsec (\t -> Passive (Ok t))
