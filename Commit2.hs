@@ -24,15 +24,15 @@ eta p = \ok err -> abs (\inp -> app (p ok err) inp)
 
 {-# INLINE case_ #-}
 case_ :: One a -> One a
-case_ x = x
-  -- case x of
-  --   Passive x -> Passive x
-  --   Block -> Block
-  --   Err -> Err
+case_ x =
+  case x of
+    Passive x -> Passive x
+    Block -> Block
+    Err -> Err
 
 {-# INLINE parsec #-}
 parsec :: Stream a => (forall c. Inner a b c) -> (Token a -> One b) -> Parsec a b
-parsec p l = Parsec (eta p) l -- (\x -> case_ (l x))
+parsec p l = Parsec (eta p) (\x -> case_ (l x))
 
 {-# INLINE runParsec #-}
 runParsec :: Stream a => Parsec a b -> Inner a b c
@@ -68,11 +68,7 @@ parsecReturn x = parsec (\ok err -> ok x) (\_ -> Passive x)
 
 {-# INLINE parsecBind #-}
 x `parsecBind` f =
-  parsec (\ok err -> abs (\inp -> 
-           case one x (hd inp) of
-                Passive x -> runParsec (f x) ok err `app` inp
-                Block -> runParsec x (\y -> runParsec (f y) ok err) err `app` inp
-                Err -> err))
+  parsec (\ok err -> abs (\inp -> runParsec x (\y -> runParsec (f y) ok err) err `app` inp))
          (\t ->
            case one x t of
              Passive x -> one (f x) t

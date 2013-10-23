@@ -1,7 +1,7 @@
 .NOTPARALLEL:
 
-GHC = ghc -O2 -funfolding-creation-threshold=1000 -funfolding-use-threshold=1000 -fllvm -rtsopts -fsimpl-tick-factor=1000
-VARIANTS = Munch AttoParsec Parsec NoMessages IgnoreLabels Try More TryMore Errors Commit Commit2
+GHC = ghc -O2 -funfolding-creation-threshold=1000 -funfolding-use-threshold=1000 -rtsopts -fsimpl-tick-factor=1000
+VARIANTS = Munch AttoParsec Parsec NoMessages IgnoreLabels Try More TryMore Errors Commit Commit2 Fusion Commit4
 BENCHMARKS = Brackets RFC2616 Arith Prolog SExp
 
 all: $(foreach v, $(VARIANTS), $(foreach b, $(BENCHMARKS), $v$b $(if $(HCR), $v$b.hcr)))

@@ -111,10 +111,9 @@ next = do
 {-# INLINE satisfy #-}
 satisfy :: (Stream a, Token a ~ Char) => (Token a -> Bool) -> Parsec a (Token a)
 satisfy p = do
-  {-x <- peek
-  guard (p x)-}
+  x <- peek
+  guard (p x)
   t <- next
-  -- when (p '\000') $ guard (p t)
   guard (p t)
   cut
   checkpoint

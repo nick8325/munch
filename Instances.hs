@@ -58,6 +58,10 @@ instance Stream Chars where
   type Token Chars = Char
   {-# INLINE primToken #-}
   primToken (Cons c cs) ok _ _ = ok cs c
+  hd (Cons c _) = c
+  newtype Fun Chars a = CF (Char# -> Chars -> a)
+  abs f = CF (\c# cs -> f (Cons (C# c#) cs))
+  app (CF f) (Cons (C# c#) cs) = f c# cs
 
 instance Stream [Char] where
   type Token [Char] = Char

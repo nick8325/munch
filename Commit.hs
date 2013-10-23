@@ -17,7 +17,7 @@ type Inner a b c =
 
 {-# INLINE eta #-}
 eta :: Inner a b c -> Inner a b c
-eta p = \ok err inp -> p ok err inp
+eta p = \ok err inp _ -> p (\inp' x -> ok inp' x) (\_ -> err ()) inp ()
 
 {-# INLINE parsec #-}
 parsec :: (forall c. Inner a b c) -> Parsec a b
@@ -27,7 +27,7 @@ parsec p = Parsec (eta p)
 runParsec :: Parsec a b -> Inner a b c
 runParsec (Parsec p) = eta p
 
-type Reply a = Result a
+type Reply a = () -> Result a
 
 data Result a = Ok a | Error deriving (Eq, Ord, Show)
 
@@ -57,8 +57,8 @@ m1 `parsecChoice` m2 = parsec (\ok err inp ->
   runParsec m1 ok (runParsec m2 ok err inp) inp)
 
 run :: Stream a => Parsec a b -> a -> Result b
-run p x = runParsec p ok err x
-  where ok x _ = Ok x
+run p x = runParsec p ok (\_ -> err) x ()
+  where ok x _ _ = Ok x
         err = Error
 
 {-# INLINE cut #-}
@@ -79,7 +79,7 @@ progress = return ()
 
 {-# INLINE success #-}
 success :: Parsec a b -> Parsec a b
-success p = parsec (\ok err inp -> runParsec p ok Error inp)
+success p = parsec (\ok err inp -> runParsec p ok (\_ -> Error) inp)
 
 peek :: Stream a => Parsec a (Token a)
 peek = parsec (\ok err inp -> ok (hd inp) inp)
