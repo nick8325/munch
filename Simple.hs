@@ -15,12 +15,12 @@ type CPS s a r =
   -> ([Error] -> Reply r) -- err: failure
   -> [Error] -> s -> Reply r
 
-type Reply a = Result a
+type Reply a = () -> Result a
 
 -- Eta-expanding smart constructors.
 {-# INLINE cpsEta #-}
 cpsEta :: CPS s a r -> CPS s a r
-cpsEta p = \ok err errs inp -> p ok (\errs -> err errs) errs inp
+cpsEta p = \ok err errs inp x -> p ok (\errs x -> err errs x) errs inp x
 
 {-# INLINE parser #-}
 parser :: (forall r. CPS s a r) -> Simple s a
@@ -66,12 +66,12 @@ parserExpected f p = parser (\ok err errs inp -> runParser p ok err (f (pos inp)
 
 {-# INLINE parserSuccess #-}
 parserSuccess :: Simple s a -> Simple s a
-parserSuccess p = parser (\ok err errs -> runParser p ok Error [])
+parserSuccess p = parser (\ok err errs -> runParser p ok (\errs _ -> Error errs) [])
 
 {-# INLINE parserRun #-}
 parserRun :: Simple s a -> s -> Result a
 parserRun p inp =
-  runParser p (\x _ -> Ok x) Error [] inp
+  runParser p (\x _ _ -> Ok x) (\errs _ -> Error errs) [] inp ()
 
 instance Stream s => Functor (Simple s) where
   fmap = liftM
