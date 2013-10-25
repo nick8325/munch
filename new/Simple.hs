@@ -19,17 +19,17 @@ type Reply a = () -> Result a
 data Result a = Ok a | Error deriving Show
 
 -- Eta-expanding smart constructors.
-{-# INLINE eta #-}
-eta :: CPS s a r -> CPS s a r
-eta p = \ok err inp _ -> p (\x inp' _ -> ok x inp' ()) (\_ -> err ()) inp ()
+{-# INLINE cpsEta #-}
+cpsEta :: CPS s a r -> CPS s a r
+cpsEta p = \ok err inp _ -> p (\x inp' _ -> ok x inp' ()) (\_ -> err ()) inp ()
 
 {-# INLINE parser #-}
 parser :: (forall r. CPS s a r) -> Simple s a
-parser p = Simple (eta p)
+parser p = Simple (cpsEta p)
 
 {-# INLINE runParser #-}
 runParser :: Simple s a -> CPS s a r
-runParser (Simple p) = eta p
+runParser (Simple p) = cpsEta p
 
 {-# INLINE parserReturn #-}
 parserReturn :: a -> Simple s a
@@ -90,3 +90,5 @@ instance Stream s => Parser (Simple s) where
   putInput = parserPutInput
   success = parserSuccess
   run = parserRun
+  {-# INLINE eta #-}
+  eta p = parser (runParser p)

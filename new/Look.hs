@@ -15,15 +15,24 @@ data Look p a =
     feed :: Maybe (Token (StreamType p)) -> p a
   }
 
+{-# INLINE lookEta #-}
+lookEta :: Parser p => Look p a -> Look p a
+lookEta p =
+  Look {
+    here = eta (here p),
+    look = \t -> look p t,
+    feed = \t -> eta (feed p t)
+    }
+
 data Kind a =
     Ok a
   | Error
   | Block
 
 {-# INLINE active #-}
-active :: p a -> Look p a
+active :: Parser p => p a -> Look p a
 active p =
-  Look {
+  eta $ Look {
     here = p,
     look = \_ -> Block,
     feed = \_ -> p
@@ -32,7 +41,7 @@ active p =
 {-# INLINE lookReturn #-}
 lookReturn :: Parser p => a -> Look p a
 lookReturn x =
-  Look {
+  eta $ Look {
     here = return x,
     look = \_ -> Ok x,
     feed = \_ -> return x
@@ -41,7 +50,7 @@ lookReturn x =
 {-# INLINE[0] lookBind #-}
 lookBind :: Parser p => Look p a -> (a -> Look p b) -> Look p b
 x `lookBind` f =
-  Look {
+  eta $ Look {
     here = hereBind x f,
     look = kindBind x f,
     feed = feedBind x f
@@ -63,7 +72,7 @@ feedBind x f = \t -> feed x t >>= here . f
 {-# INLINE lookZero #-}
 lookZero :: Parser p => Look p a
 lookZero =
-  Look {
+  eta $ Look {
     here = mzero,
     look = \_ -> Error,
     feed = \_ -> mzero
@@ -72,7 +81,7 @@ lookZero =
 {-# INLINE lookChoice #-}
 lookChoice :: Parser p => Look p a -> Look p a -> Look p a
 p `lookChoice` q = 
-  Look {
+  eta $ Look {
     here = hereChoice p q,
     look = p `kindChoice` q,
     feed = p `feedChoice` q
@@ -100,7 +109,7 @@ p `feedChoice` q = \t ->
 {-# INLINE lookPeek #-}
 lookPeek :: Parser p => Look p (Maybe (Token (StreamType p)))
 lookPeek =
-  Look {
+  eta $ Look {
     here = peek,
     look = Ok,
     feed = return
@@ -117,7 +126,7 @@ lookPutInput inp = active (putInput inp)
 {-# INLINE lookSuccess #-}
 lookSuccess :: Parser p => Look p a -> Look p a
 lookSuccess p =
-  Look {
+  eta $ Look {
     here = success (here p),
     look = look p,
     feed = success . feed p
@@ -126,7 +135,7 @@ lookSuccess p =
 {-# INLINE lookProgress #-}
 lookProgress :: Parser p => Look p a -> Look p a
 lookProgress p =
-  Look {
+  eta $ Look {
     here = progress (here p),
     look = kindProgress,
     feed = progress . feed p
@@ -189,3 +198,5 @@ instance Parser p => Parser (Look p) where
   progress p = lookProgress p
   {-# INLINE run #-}
   run p s = lookRun p s
+  {-# INLINE eta #-}
+  eta = lookEta
