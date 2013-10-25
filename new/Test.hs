@@ -5,8 +5,6 @@ import qualified Data.ByteString as B
 import System.Environment
 import System.IO
 import Control.Monad
-import Look3
-import Simple
 import Stream
 import Class
 
@@ -16,7 +14,7 @@ readBS name = fmap (B.take 2000000) (B.readFile name)
 {-# NOINLINE go #-}
 go p file = return (Class.run p file) >>= print
 
-test :: (Stream s, Show a) => IO s -> Look (Simple s) a -> IO ()
+test :: (Parser p, Show a) => IO (StreamType p) -> p a -> IO ()
 test theFile p = do
   hSetBuffering stdout LineBuffering
   prog <- getProgName
