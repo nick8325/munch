@@ -10,19 +10,26 @@ import Control.Monad
 
 data Look p a =
   Look {
-    here :: p a,
-    look :: Maybe (Token (StreamType p)) -> Kind a,
-    feed :: Maybe (Token (StreamType p)) -> p a
+    here_ :: p a,
+    look_ :: Maybe (Token (StreamType p)) -> Kind a,
+    feed_ :: Maybe (Token (StreamType p)) -> p a
   }
 
 {-# INLINE lookEta #-}
 lookEta :: Parser p => Look p a -> Look p a
-lookEta p =
+lookEta p@Look{} =
   Look {
-    here = eta (here p),
-    look = \t -> look p t,
-    feed = \t -> eta (feed p t)
+    here_ = here p,
+    look_ = look p,
+    feed_ = feed p
     }
+
+{-# INLINE here #-}
+here p = eta (here_ p)
+{-# INLINE look #-}
+look p = \t -> look_ p t
+{-# INLINE feed #-}
+feed p = \t -> eta (feed_ p t)
 
 data Kind a =
     Ok a
@@ -33,27 +40,27 @@ data Kind a =
 active :: Parser p => p a -> Look p a
 active p =
   eta $ Look {
-    here = p,
-    look = \_ -> Block,
-    feed = \_ -> p
+    here_ = p,
+    look_ = \_ -> Block,
+    feed_ = \_ -> p
     }
 
 {-# INLINE lookReturn #-}
 lookReturn :: Parser p => a -> Look p a
 lookReturn x =
   eta $ Look {
-    here = return x,
-    look = \_ -> Ok x,
-    feed = \_ -> return x
+    here_ = return x,
+    look_ = \_ -> Ok x,
+    feed_ = \_ -> return x
     }
 
 {-# INLINE[0] lookBind #-}
 lookBind :: Parser p => Look p a -> (a -> Look p b) -> Look p b
 x `lookBind` f =
   eta $ Look {
-    here = hereBind x f,
-    look = kindBind x f,
-    feed = feedBind x f
+    here_ = hereBind x f,
+    look_ = kindBind x f,
+    feed_ = feedBind x f
     }
 
 {-# INLINE hereBind #-}
@@ -77,33 +84,33 @@ feedBind x f = \t ->
 lookZero :: Parser p => Look p a
 lookZero =
   eta $ Look {
-    here = mzero,
-    look = \_ -> Error,
-    feed = \_ -> mzero
+    here_ = mzero,
+    look_ = \_ -> Error,
+    feed_ = \_ -> mzero
     }
 
 {-# INLINE lookChoice #-}
 lookChoice :: Parser p => Look p a -> Look p a -> Look p a
 p `lookChoice` q = 
   eta $ Look {
-    here = hereChoice p q,
-    look = p `kindChoice` q,
-    feed = p `feedChoice` q
+    here_ = hereChoice p q,
+    look_ = \t -> kindChoice p q t,
+    feed_ = \t -> feedChoice p q t
     }
 
 {-# INLINE[0] hereChoice #-}
-hereChoice p q = do { t <- peek; (p `feedChoice` q) t }
+hereChoice p q = do { t <- peek; feedChoice p q t }
 
 {-# INLINE kindChoice #-}
 kindChoice :: Parser p => Look p a -> Look p a -> Maybe (Token (StreamType p)) -> Kind a
-p `kindChoice` q = \t ->
+kindChoice p q t =
   case (look p t, look q t) of
     (Error, x) -> x
     (x, _) -> x
 
 {-# INLINE feedChoice #-}
 feedChoice :: Parser p => Look p a -> Look p a -> Maybe (Token (StreamType p)) -> p a
-p `feedChoice` q = \t ->
+feedChoice p q t =
   case (look p t, look q t) of
     (Ok x, _) -> return x
     (Error, Ok x) -> return x
@@ -117,9 +124,9 @@ p `feedChoice` q = \t ->
 lookPeek :: Parser p => Look p (Maybe (Token (StreamType p)))
 lookPeek =
   eta $ Look {
-    here = peek,
-    look = Ok,
-    feed = return
+    here_ = peek,
+    look_ = Ok,
+    feed_ = return
     }
 
 {-# INLINE lookGetInput #-}
@@ -134,18 +141,18 @@ lookPutInput inp = active (putInput inp)
 lookSuccess :: Parser p => Look p a -> Look p a
 lookSuccess p =
   eta $ Look {
-    here = success (here p),
-    look = look p,
-    feed = success . feed p
+    here_ = success (here p),
+    look_ = look p,
+    feed_ = success . feed p
     }
 
 {-# INLINE lookProgress #-}
 lookProgress :: Parser p => Look p a -> Look p a
 lookProgress p =
   eta $ Look {
-    here = progress (here p),
-    look = kindProgress,
-    feed = progress . feed p
+    here_ = progress (here p),
+    look_ = kindProgress,
+    feed_ = progress . feedProgress
     }
   where
     {-# INLINE kindProgress #-}
