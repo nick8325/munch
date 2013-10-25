@@ -116,26 +116,48 @@ resultSuccess (Block p) = Block (success p)
 lookRun :: Parser p => Look p a -> StreamType p -> Maybe a
 lookRun p inp = run (here p) inp
 
-instance Parser p => Functor (Look p) where fmap = liftM
+instance Parser p => Functor (Look p) where
+  {-# INLINE fmap #-}
+  fmap f mx = do { x <- mx; return (f x) }
 instance Parser p => Applicative (Look p) where
-  pure = return
-  (<*>) = ap
+  {-# INLINE pure #-}
+  pure x = return x
+  {-# INLINE (<*>) #-}
+  mf <*> mx = do { f <- mf; x <- mx; return (f x) }
+  {-# INLINE (*>) #-}
+  x *> y = x >> y
+  {-# INLINE (<*) #-}
+  mx <* my = do { x <- mx; my; return x }
 instance Parser p => Alternative (Look p) where
+  {-# INLINE empty #-}
   empty = mzero
-  (<|>) = mplus
-  some = parseSome
-  many = parseMany
+  {-# INLINE (<|>) #-}
+  x <|> y = x `mplus` y
+  {-# INLINE some #-}
+  some p = parseSome p
+  {-# INLINE many #-}
+  many p = parseMany p
 instance Parser p => Monad (Look p) where
-  return = lookReturn
-  (>>=) = lookBind
+  {-# INLINE return #-}
+  return x = lookReturn x
+  {-# INLINE (>>=) #-}
+  x >>= f = x `lookBind` f
+  {-# INLINE fail #-}
   fail _ = lookZero
 instance Parser p => MonadPlus (Look p) where
+  {-# INLINE mzero #-}
   mzero = lookZero
-  mplus = lookChoice
+  {-# INLINE mplus #-}
+  x `mplus` y = x `lookChoice` y
 instance Parser p => Parser (Look p) where
   type StreamType (Look p) = StreamType p
+  {-# INLINE peek #-}
   peek = lookPeek
+  {-# INLINE getInput #-}
   getInput = lookGetInput
-  putInput = lookPutInput
-  success = lookSuccess
-  run = lookRun
+  {-# INLINE putInput #-}
+  putInput x = lookPutInput x
+  {-# INLINE success #-}
+  success p = lookSuccess p
+  {-# INLINE run #-}
+  run p s = lookRun p s
