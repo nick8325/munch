@@ -8,214 +8,156 @@ import InstanceHelpers
 import Control.Applicative
 import Control.Monad
 
-data Look p a =
-  Look {
-    here_ :: p a,
-    look_ :: Maybe (Token (StreamType p)) -> Kind a,
-    feed_ :: Maybe (Token (StreamType p)) -> p a
+data Look p a = Look {
+  parse :: p a,
+  next :: NextToken p -> Result p a
   }
 
-{-# INLINE lookEta #-}
-lookEta :: Parser p => Look p a -> Look p a
-lookEta p@Look{} =
-  Look {
-    here_ = here p,
-    look_ = look p,
-    feed_ = feed p
-    }
+type NextToken p = Maybe (Token (StreamType p))
 
-{-# INLINE here #-}
-here p = eta (here_ p)
-{-# INLINE look #-}
-look p = \t -> look_ p t
-{-# INLINE feed #-}
-feed p = \t -> eta (feed_ p t)
-
-data Kind a =
+data Result p a  =
     Ok a
   | Error
-  | Block
+  | Blocked (p a)
 
-{-# INLINE active #-}
-active :: Parser p => p a -> Look p a
-active p =
-  eta $ Look {
-    here_ = p,
-    look_ = \_ -> Block,
-    feed_ = \_ -> p
-    }
+{-# INLINE CONLIKE inBlocked #-}
+inBlocked :: (p a -> p a) -> Result p a -> Result p a
+inBlocked f (Blocked x) = Blocked (f x)
+inBlocked _ x = x
 
-{-# INLINE lookReturn #-}
+{-# INLINE CONLIKE lookEta #-}
+lookEta :: Parser p => Look p a -> Look p a
+lookEta (Look p pr) = Look (eta p) (\t -> inBlocked eta (pr t))
+
+{-# INLINE CONLIKE look #-}
+look :: Parser p => (NextToken p -> Result p a) -> p a
+look p = peek >>= execute . p
+
+{-# INLINE CONLIKE execute #-}
+execute :: Parser p => Result p a -> p a
+execute (Ok x) = return x
+execute Error = mzero
+execute (Blocked p) = p
+
+{-# INLINE CONLIKE fromParser #-}
+fromParser :: Parser p => p a -> Look p a
+fromParser p = Look p (\_ -> Blocked p)
+
+{-# INLINE CONLIKE lookReturn #-}
 lookReturn :: Parser p => a -> Look p a
-lookReturn x =
-  eta $ Look {
-    here_ = return x,
-    look_ = \_ -> Ok x,
-    feed_ = \_ -> return x
-    }
+lookReturn x = Look (return x) (\_ -> Ok x)
 
-{-# INLINE[0] lookBind #-}
+{-# INLINE CONLIKE lookBind #-}
 lookBind :: Parser p => Look p a -> (a -> Look p b) -> Look p b
 x `lookBind` f =
-  eta $ Look {
-    here_ = hereBind x f,
-    look_ = kindBind x f,
-    feed_ = feedBind x f
+  Look {
+    parse = parse x >>= parse . f,
+    next = \t ->
+      case next x t of
+        Ok y -> next (f y) t
+        Error -> Error
+        Blocked p -> Blocked (p >>= parse . f)
     }
 
-{-# INLINE hereBind #-}
-hereBind x f = here x >>= here . f
-
-{-# INLINE kindBind #-}
-kindBind x f = \t ->
-  case look x t of
-    Ok x -> look (f x) t
-    Error -> Error
-    Block -> Block
-
-{-# INLINE[0] feedBind #-}
-feedBind x f = \t ->
-  case look x t of
-    Ok x -> feed (f x) t
-    Error -> mzero
-    Block -> feed x t >>= here . f
-
-{-# INLINE lookZero #-}
+{-# INLINE CONLIKE lookZero #-}
 lookZero :: Parser p => Look p a
-lookZero =
-  eta $ Look {
-    here_ = mzero,
-    look_ = \_ -> Error,
-    feed_ = \_ -> mzero
-    }
+lookZero = Look mzero (\_ -> Error)
 
-{-# INLINE lookChoice #-}
+{-# INLINE CONLIKE lookChoice #-}
 lookChoice :: Parser p => Look p a -> Look p a -> Look p a
-p `lookChoice` q = 
-  eta $ Look {
-    here_ = hereChoice p q,
-    look_ = \t -> kindChoice p q t,
-    feed_ = \t -> feedChoice p q t
-    }
-
-{-# INLINE[0] hereChoice #-}
-hereChoice p q = do { t <- peek; feedChoice p q t }
-
-{-# INLINE kindChoice #-}
-kindChoice :: Parser p => Look p a -> Look p a -> Maybe (Token (StreamType p)) -> Kind a
-kindChoice p q t =
-  case (look p t, look q t) of
-    (Error, x) -> x
-    (x, _) -> x
-
-{-# INLINE feedChoice #-}
-feedChoice :: Parser p => Look p a -> Look p a -> Maybe (Token (StreamType p)) -> p a
-feedChoice p q t =
-  case (look p t, look q t) of
-    (Ok x, _) -> return x
-    (Error, Ok x) -> return x
-    (Error, Error) -> mzero
-    (Error, Block) -> feed q t
-    (Block, Ok x) -> feed p t `mplus` return x
-    (Block, Error) -> feed p t
-    (Block, Block) -> feed p t `mplus` feed q t
-
-{-# INLINE lookPeek #-}
-lookPeek :: Parser p => Look p (Maybe (Token (StreamType p)))
-lookPeek =
-  eta $ Look {
-    here_ = peek,
-    look_ = Ok,
-    feed_ = return
-    }
-
-{-# INLINE lookGetInput #-}
-lookGetInput :: Parser p => Look p (StreamType p)
-lookGetInput = active getInput
-
-{-# INLINE lookPutInput #-}
-lookPutInput :: Parser p => StreamType p -> Look p ()
-lookPutInput inp = active (putInput inp)
-
-{-# INLINE lookSuccess #-}
-lookSuccess :: Parser p => Look p a -> Look p a
-lookSuccess p =
-  eta $ Look {
-    here_ = success (here p),
-    look_ = look p,
-    feed_ = success . feed p
-    }
-
-{-# INLINE lookProgress #-}
-lookProgress :: Parser p => Look p a -> Look p a
-lookProgress p =
-  eta $ Look {
-    here_ = progress (here p),
-    look_ = kindProgress,
-    feed_ = progress . feedProgress
+p `lookChoice` q =
+  Look {
+    parse = look (\t -> next p t `resultChoice` next q t),
+    next = \t -> next p t `resultChoice` next q t
     }
   where
-    {-# INLINE kindProgress #-}
-    kindProgress t =
-      case look p t of
-        Ok{} -> Error
-        x -> x
-    {-# INLINE feedProgress #-}
-    feedProgress t =
-      case look p t of
-        Ok{} -> mzero
-        _ -> feed p t
+    {-# INLINE resultChoice #-}
+    resultChoice (Ok x) _ = Ok x
+    resultChoice Error x = x
+    resultChoice x Error = x
+    resultChoice p q = Blocked (execute p `mplus` execute q)
 
-{-# INLINE lookRun #-}
+{-# INLINE CONLIKE lookPeek #-}
+lookPeek :: Parser p => Look p (Maybe (Token (StreamType p)))
+lookPeek = Look peek Ok
+
+{-# INLINE CONLIKE lookGetInput #-}
+lookGetInput :: Parser p => Look p (StreamType p)
+lookGetInput = fromParser getInput
+
+{-# INLINE CONLIKE lookPutInput #-}
+lookPutInput :: Parser p => StreamType p -> Look p ()
+lookPutInput inp = fromParser (putInput inp)
+
+{-# INLINE CONLIKE lookSuccess #-}
+lookSuccess :: Parser p => Look p a -> Look p a
+lookSuccess p =
+  p {
+    parse = success (parse p),
+    next = \t -> inBlocked success (next p t)
+    }
+
+{-# INLINE CONLIKE lookProgress #-}
+lookProgress :: Parser p => Look p a -> Look p a
+lookProgress p =
+  p {
+    parse = progress (parse p),
+    next = \t ->
+      case inBlocked progress (next p t) of 
+        Ok _ -> Error
+        x -> x
+    }
+
+{-# INLINE CONLIKE lookRun #-}
 lookRun :: Parser p => Look p a -> StreamType p -> Maybe a
-lookRun p inp = run (here p) inp
+lookRun p inp = run (parse p) inp
 
 instance Parser p => Functor (Look p) where
-  {-# INLINE fmap #-}
+  {-# INLINE CONLIKE fmap #-}
   fmap f mx = do { x <- mx; return (f x) }
 instance Parser p => Applicative (Look p) where
-  {-# INLINE pure #-}
+  {-# INLINE CONLIKE pure #-}
   pure x = return x
-  {-# INLINE (<*>) #-}
+  {-# INLINE CONLIKE (<*>) #-}
   mf <*> mx = do { f <- mf; x <- mx; return (f x) }
-  {-# INLINE (*>) #-}
+  {-# INLINE CONLIKE (*>) #-}
   x *> y = x >> y
-  {-# INLINE (<*) #-}
+  {-# INLINE CONLIKE (<*) #-}
   mx <* my = do { x <- mx; my; return x }
 instance Parser p => Alternative (Look p) where
-  {-# INLINE empty #-}
+  {-# INLINE CONLIKE empty #-}
   empty = mzero
-  {-# INLINE (<|>) #-}
+  {-# INLINE CONLIKE (<|>) #-}
   x <|> y = x `mplus` y
-  {-# INLINE some #-}
+  {-# INLINE CONLIKE some #-}
   some p = parseSome p
-  {-# INLINE many #-}
+  {-# INLINE CONLIKE many #-}
   many p = parseMany p
 instance Parser p => Monad (Look p) where
-  {-# INLINE return #-}
+  {-# INLINE CONLIKE return #-}
   return x = lookReturn x
-  {-# INLINE (>>=) #-}
+  {-# INLINE CONLIKE (>>=) #-}
   x >>= f = x `lookBind` f
-  {-# INLINE fail #-}
+  {-# INLINE CONLIKE fail #-}
   fail _ = lookZero
 instance Parser p => MonadPlus (Look p) where
-  {-# INLINE mzero #-}
+  {-# INLINE CONLIKE mzero #-}
   mzero = lookZero
-  {-# INLINE mplus #-}
+  {-# INLINE CONLIKE mplus #-}
   x `mplus` y = x `lookChoice` y
 instance Parser p => Parser (Look p) where
   type StreamType (Look p) = StreamType p
-  {-# INLINE peek #-}
+  {-# INLINE CONLIKE peek #-}
   peek = lookPeek
-  {-# INLINE getInput #-}
+  {-# INLINE CONLIKE getInput #-}
   getInput = lookGetInput
-  {-# INLINE putInput #-}
+  {-# INLINE CONLIKE putInput #-}
   putInput x = lookPutInput x
-  {-# INLINE success #-}
+  {-# INLINE CONLIKE success #-}
   success p = lookSuccess p
-  {-# INLINE progress #-}
+  {-# INLINE CONLIKE progress #-}
   progress p = lookProgress p
-  {-# INLINE run #-}
+  {-# INLINE CONLIKE run #-}
   run p s = lookRun p s
-  {-# INLINE eta #-}
+  {-# INLINE CONLIKE eta #-}
   eta = lookEta
