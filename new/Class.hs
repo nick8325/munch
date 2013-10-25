@@ -12,7 +12,7 @@ class (Functor m, Applicative m, Alternative m, Monad m, MonadPlus m,
 
   {-# INLINE peek #-}
   peek :: m (Maybe (Token (StreamType m)))
-  peek = fmap (fmap fst . uncons) getInput
+  peek = fmap hd getInput
     
   getInput :: m (StreamType m)
   putInput :: StreamType m -> m ()
