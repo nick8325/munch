@@ -14,11 +14,11 @@ eof = do
 
 {-# INLINE skipSome #-}
 skipSome :: Parser p => p a -> p ()
-skipSome p = p' where p' = p >> success (p' `mplus` return ())
+skipSome p = p' where p' = progress p >> success (p' `mplus` return ())
 
 {-# INLINE skipMany #-}
 skipMany :: Parser p => p a -> p ()
-skipMany p = p' where p' = success $ (p >> p') `mplus` return ()
+skipMany p = p' where p' = success $ (progress p >> p') `mplus` return ()
 
 {-# INLINE between #-}
 between :: Parser p => p a -> p b -> p c -> p c

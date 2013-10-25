@@ -21,4 +21,10 @@ class (Functor m, Applicative m, Alternative m, Monad m, MonadPlus m,
   success :: m a -> m a
   success = id
   
+  {-# INLINEABLE progress #-}
+  -- Like Parsec's 'nonempty', but does not check anything.
+  -- Used to help the simplifier.
+  progress :: m a -> m a
+  progress = id
+
   run :: m a -> StreamType m -> Maybe a
