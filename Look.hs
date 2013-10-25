@@ -101,10 +101,13 @@ p `kindChoice` q = \t ->
 feedChoice :: Parser p => Look p a -> Look p a -> Maybe (Token (StreamType p)) -> p a
 p `feedChoice` q = \t ->
   case (look p t, look q t) of
-    (_, Error) -> feed p t
-    (Error, _) -> feed q t
-    (Ok x, _) -> feed p t
-    _ -> feed p t `mplus` feed q t
+    (Ok x, _) -> return x
+    (Error, Ok x) -> return x
+    (Error, Error) -> mzero
+    (Error, Block) -> feed q t
+    (Block, Ok x) -> feed p t `mplus` return x
+    (Block, Error) -> feed p t
+    (Block, Block) -> feed p t `mplus` feed q t
 
 {-# INLINE lookPeek #-}
 lookPeek :: Parser p => Look p (Maybe (Token (StreamType p)))
