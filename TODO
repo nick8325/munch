@@ -1,4 +1,8 @@
-* Error messages.
+* Error messages:
+  are we storing the same message twice?
+  When we come to a choice point, all of the choices are going to add
+  their progress to the error list. But Look is also adding things to
+  the error list itself. Make sure this works.
 * Stream instance for Text.
 * Incrementality (checkpoints).
 * Add Parser a b -> a -> [(a,b)] and (a -> [(a, b)]) -> Parser a b functions.
