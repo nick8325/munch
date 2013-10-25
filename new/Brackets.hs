@@ -4,7 +4,7 @@ import Control.Applicative
 import Class
 import Combinators
 import Simple
-import Look
+import Look3
 import qualified Data.ByteString.Char8 as B
 
 {-# INLINEABLE brackets #-}
