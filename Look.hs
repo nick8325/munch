@@ -11,20 +11,22 @@ import Control.Monad
 data Look p a =
   Look {
     here :: p a,
-    feed :: Maybe (Token (StreamType p)) -> Result p a
+    look :: Maybe (Token (StreamType p)) -> Kind a,
+    feed :: Maybe (Token (StreamType p)) -> p a
   }
 
-data Result p a =
+data Kind a =
     Ok a
   | Error
-  | Block (p a)
+  | Block
 
 {-# INLINE active #-}
 active :: p a -> Look p a
 active p =
   Look {
     here = p,
-    feed = \_ -> Block p
+    look = \_ -> Block,
+    feed = \_ -> p
     }
 
 {-# INLINE lookReturn #-}
@@ -32,7 +34,8 @@ lookReturn :: Parser p => a -> Look p a
 lookReturn x =
   Look {
     here = return x,
-    feed = \_ -> Ok x
+    look = \_ -> Ok x,
+    feed = \_ -> return x
     }
 
 {-# INLINE lookBind #-}
@@ -40,54 +43,58 @@ lookBind :: Parser p => Look p a -> (a -> Look p b) -> Look p b
 x `lookBind` f =
   Look {
     here = here x >>= here . f,
-    feed = \t ->
-      case feed x t of
-        Ok x -> feed (f x) t
-        Error -> Error
-        Block p -> Block (p >>= here . f)
+    look = kindBind,
+    feed = \t -> feed x t >>= here . f
     }
+  where
+    {-# INLINE kindBind #-}
+    kindBind t =
+      case look x t of
+        Ok x -> look (f x) t
+        Error -> Error
+        Block -> Block
 
 {-# INLINE lookZero #-}
 lookZero :: Parser p => Look p a
 lookZero =
   Look {
     here = mzero,
-    feed = \_ -> Error
+    look = \_ -> Error,
+    feed = \_ -> mzero
     }
-
-{-# INLINE activate #-}
-activate :: Parser p => (Maybe (Token (StreamType p)) -> Result p a) -> p a
-activate p = do
-  t <- peek
-  case p t of
-    Ok x -> return x
-    Error -> mzero
-    Block q -> q
 
 {-# INLINE lookChoice #-}
 lookChoice :: Parser p => Look p a -> Look p a -> Look p a
 p `lookChoice` q = 
   Look {
-    here = activate (p `resultChoice` q),
-    feed = p `resultChoice` q
+    here = do { t <- peek; (p `feedChoice` q) t },
+    look = \t -> (p `kindChoice` q) t,
+    feed = \t -> (p `feedChoice` q) t
     }
 
-{-# INLINE resultChoice #-}
-resultChoice :: Parser p => Look p a -> Look p a -> Maybe (Token (StreamType p)) -> Result p a
-p `resultChoice` q = \t ->
-  case (feed p t, feed q t) of
-    (Ok x, _) -> Ok x
+{-# INLINE kindChoice #-}
+kindChoice :: Parser p => Look p a -> Look p a -> Maybe (Token (StreamType p)) -> Kind a
+p `kindChoice` q = \t ->
+  case (look p t, look q t) of
     (Error, x) -> x
-    (x@Block{}, Error) -> x
-    (Block p, Ok x) -> Block (p `mplus` return x)
-    (Block p, Block q) -> Block (p `mplus` q)
+    (x, _) -> x
+
+{-# INLINE feedChoice #-}
+feedChoice :: Parser p => Look p a -> Look p a -> Maybe (Token (StreamType p)) -> p a
+p `feedChoice` q = \t ->
+  case (look p t, look q t) of
+    (_, Error) -> feed p t
+    (Error, _) -> feed q t
+    (Ok x, _) -> feed p t
+    _ -> feed p t `mplus` feed q t
 
 {-# INLINE lookPeek #-}
 lookPeek :: Parser p => Look p (Maybe (Token (StreamType p)))
 lookPeek =
   Look {
     here = peek,
-    feed = Ok
+    look = Ok,
+    feed = return
     }
 
 {-# INLINE lookGetInput #-}
@@ -103,14 +110,24 @@ lookSuccess :: Parser p => Look p a -> Look p a
 lookSuccess p =
   Look {
     here = success (here p),
-    feed = \t -> resultSuccess (feed p t)
+    look = look p,
+    feed = success . feed p
     }
 
-{-# INLINE resultSuccess #-}
-resultSuccess :: Parser p => Result p a -> Result p a
-resultSuccess (Ok x) = Ok x
-resultSuccess Error = error "success called on failing parser"
-resultSuccess (Block p) = Block (success p)
+{-# INLINE lookProgress #-}
+lookProgress :: Parser p => Look p a -> Look p a
+lookProgress p =
+  Look {
+    here = progress (here p),
+    look = kindProgress,
+    feed = progress . feed p
+    }
+  where
+    {-# INLINE kindProgress #-}
+    kindProgress t =
+      case look p t of
+        Ok{} -> error "Parser has gone into infinite loop"
+        x -> x
 
 {-# INLINE lookRun #-}
 lookRun :: Parser p => Look p a -> StreamType p -> Maybe a
@@ -159,5 +176,7 @@ instance Parser p => Parser (Look p) where
   putInput x = lookPutInput x
   {-# INLINE success #-}
   success p = lookSuccess p
+  {-# INLINE progress #-}
+  progress p = lookProgress p
   {-# INLINE run #-}
   run p s = lookRun p s
