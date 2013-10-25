@@ -11,17 +11,16 @@ import Control.Monad
 newtype Simple s a = Simple (forall r. CPS s a r)
 
 type CPS s a r =
-     (a -> s -> Reply r) -- ok: success
-  -> Reply r             -- err: failure
-  -> s -> Reply r
+     (a -> s -> Reply r)  -- ok: success
+  -> ([Error] -> Reply r) -- err: failure
+  -> [Error] -> s -> Reply r
 
 type Reply a = Result a
-data Result a = Ok a | Error deriving Show
 
 -- Eta-expanding smart constructors.
 {-# INLINE cpsEta #-}
 cpsEta :: CPS s a r -> CPS s a r
-cpsEta p = \ok err inp -> p (\x inp' -> ok x inp') err inp
+cpsEta p = \ok err errs inp -> p (\x inp' -> ok x inp') err errs inp
 
 {-# INLINE parser #-}
 parser :: (forall r. CPS s a r) -> Simple s a
@@ -33,40 +32,46 @@ runParser (Simple p) = cpsEta p
 
 {-# INLINE parserReturn #-}
 parserReturn :: a -> Simple s a
-parserReturn x = parser (\ok err -> ok x)
+parserReturn x = parser (\ok err errs -> ok x)
 
 {-# INLINE parserBind #-}
 parserBind :: Simple s a -> (a -> Simple s b) -> Simple s b
 p `parserBind` f =
-  parser (\ok err -> runParser p (\x -> runParser (f x) ok err) err)
+  parser (\ok err errs -> runParser p (\x -> runParser (f x) ok err errs) err errs)
 
 {-# INLINE parserZero #-}
 parserZero :: Simple s a
-parserZero = parser (\ok err inp -> err)
+parserZero = parser (\ok err errs inp -> err errs)
 
 {-# INLINE parserChoice #-}
 parserChoice :: Simple s a -> Simple s a -> Simple s a
 p `parserChoice` q =
-  parser (\ok err inp -> runParser p ok (runParser q ok err inp) inp)
+  parser (\ok err errs inp -> runParser p ok (\errs -> runParser q ok err errs inp) errs inp)
 
 {-# INLINE parserGetInput #-}
 parserGetInput :: Simple s s
-parserGetInput = parser (\ok err inp -> ok inp inp)
+parserGetInput = parser (\ok err errs inp -> ok inp inp)
 
 {-# INLINE parserPutInput #-}
 parserPutInput :: s -> Simple s ()
-parserPutInput inp = parser (\ok err _ -> ok () inp)
+parserPutInput inp = parser (\ok err _ _ -> ok () inp)
+
+{-# INLINE parserNote #-}
+parserNote :: Stream s => Simple s a -> String -> Simple s a
+parserNote p x = parserExpected (\n errs -> Expected n x:errs) p
+
+{-# INLINE parserExpected #-}
+parserExpected :: Stream s => (Int -> [Error] -> [Error]) -> Simple s a -> Simple s a
+parserExpected f p = parser (\ok err errs inp -> runParser p ok err (f (pos inp) errs) inp)
 
 {-# INLINE parserSuccess #-}
 parserSuccess :: Simple s a -> Simple s a
-parserSuccess p = parser (\ok err -> runParser p ok Error)
+parserSuccess p = parser (\ok err errs -> runParser p ok Error [])
 
 {-# INLINE parserRun #-}
-parserRun :: Simple s a -> s -> Maybe a
+parserRun :: Simple s a -> s -> Result a
 parserRun p inp =
-  case runParser p (\x _ -> Ok x) Error inp of
-    Ok x -> Just x
-    Error -> Nothing
+  runParser p (\x _ -> Ok x) Error [] inp
 
 instance Stream s => Functor (Simple s) where
   fmap = liftM
@@ -91,5 +96,7 @@ instance Stream s => Parser (Simple s) where
   type StreamType (Simple s) = s
   getInput = parserGetInput
   putInput = parserPutInput
+  (<?>) = parserNote
+  expected = parserExpected
   success = parserSuccess
   run = parserRun

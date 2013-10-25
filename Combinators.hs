@@ -46,4 +46,4 @@ satisfy p = do
 
 {-# INLINE char #-}
 char :: (Parser p, Token (StreamType p) ~ Char) => Char -> p Char
-char x = satisfy (== x)
+char x = satisfy (== x) <?> show x

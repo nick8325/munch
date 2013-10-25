@@ -7,6 +7,7 @@ import qualified Data.ByteString.Char8 as B
 class Stream a where
   type Token a
   uncons :: a -> Maybe (Token a, a)
+  pos :: a -> Int
 
 instance Stream [a] where
   type Token [a] = a
@@ -18,3 +19,5 @@ instance Stream B.ByteString where
   type Token B.ByteString = Char
   {-# INLINE uncons #-}
   uncons = B.uncons
+  {-# INLINE pos #-}
+  pos x = - (B.length x)
