@@ -40,7 +40,8 @@ satisfy :: Parser p => (Token (StreamType p) -> Bool) -> p (Token (StreamType p)
 satisfy p = do
   Just x <- peek
   guard (p x)
-  next
+  Just (_, inp) <- fmap uncons getInput
+  putInput inp
   return x
 
 {-# INLINE char #-}
