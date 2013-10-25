@@ -5,7 +5,7 @@ import qualified Data.ByteString as B
 import System.Environment
 import System.IO
 import Control.Monad
-import Look
+import Look3
 import Simple
 import Stream
 import Class
