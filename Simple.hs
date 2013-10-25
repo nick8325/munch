@@ -20,7 +20,7 @@ type Reply a = Result a
 -- Eta-expanding smart constructors.
 {-# INLINE cpsEta #-}
 cpsEta :: CPS s a r -> CPS s a r
-cpsEta p = \ok err errs inp -> p (\x inp' -> ok x inp') err errs inp
+cpsEta p = \ok err errs inp -> p ok (\errs -> err errs) errs inp
 
 {-# INLINE parser #-}
 parser :: (forall r. CPS s a r) -> Simple s a
