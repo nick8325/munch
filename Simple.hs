@@ -93,4 +93,3 @@ instance Stream s => Parser (Simple s) where
   putInput = parserPutInput
   success = parserSuccess
   run = parserRun
-  eta = \p -> parser (runParser p)

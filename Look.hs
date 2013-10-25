@@ -25,10 +25,6 @@ inBlocked :: (p a -> p a) -> Result p a -> Result p a
 inBlocked f (Blocked x) = Blocked (f x)
 inBlocked _ x = x
 
-{-# INLINE lookEta #-}
-lookEta :: Parser p => Look p a -> Look p a
-lookEta (Look p pr) = Look (eta p) (\t -> inBlocked eta (pr t))
-
 {-# INLINE look #-}
 look :: Parser p => (NextToken p -> Result p a) -> p a
 look p = peek >>= execute . p
@@ -139,4 +135,3 @@ instance Parser p => Parser (Look p) where
   success = lookSuccess
   progress = lookProgress
   run = lookRun
-  eta = lookEta
