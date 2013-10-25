@@ -1,11 +1,12 @@
-module Main where
+module Brackets where
 
-import Test
 import Control.Applicative
 import Class
 import Combinators
+import Simple
+import Look
+import qualified Data.ByteString.Char8 as B
 
 {-# INLINEABLE brackets #-}
+brackets :: Look (Simple B.ByteString) ()
 brackets = skipMany ((char '(' *> brackets <* char ')') <|> (char '[' *> brackets <* char ']'))
-
-main = test (readBS "../testdata/brackets") brackets
