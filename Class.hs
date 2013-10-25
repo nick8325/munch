@@ -9,7 +9,7 @@ import Stream
 class (Functor m, Applicative m, Alternative m, Monad m, MonadPlus m,
        Stream (StreamType m)) => Parser m where
   type StreamType m
-  
+
   {-# INLINEABLE peek #-}
   peek :: m (Maybe (Token (StreamType m)))
   peek = fmap (fmap fst . uncons) getInput
