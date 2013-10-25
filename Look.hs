@@ -14,6 +14,9 @@ data Look p a = Look {
   next :: NextToken p -> Result p a
   }
 
+{-# INLINE look #-}
+look = Look
+
 type NextToken p = Maybe (Token (StreamType p))
 
 data Result p a  =
@@ -26,10 +29,6 @@ inBlocked :: (p a -> p a) -> Result p a -> Result p a
 inBlocked f (Blocked x) = Blocked (f x)
 inBlocked _ x = x
 
-{-# INLINE look #-}
-look :: Parser p => (NextToken p -> Result p a) -> p a
-look p = peek >>= execute . p
-
 {-# INLINE execute #-}
 execute :: Parser p => Result p a -> p a
 execute (Ok x) = return x
@@ -38,35 +37,33 @@ execute (Blocked p) = p
 
 {-# INLINE fromParser #-}
 fromParser :: Parser p => p a -> Look p a
-fromParser p = Look p (\_ -> Blocked p)
+fromParser p = look p (\_ -> Blocked p)
 
 {-# INLINE lookReturn #-}
 lookReturn :: Parser p => a -> Look p a
-lookReturn x = Look (return x) (\_ -> Ok x)
+lookReturn x = look (return x) (\_ -> Ok x)
 
 {-# INLINE lookBind #-}
 lookBind :: Parser p => Look p a -> (a -> Look p b) -> Look p b
 x `lookBind` f =
-  Look {
-    parse = parse x >>= parse . f,
-    next = \t ->
+  look
+    (parse x >>= parse . f)
+    (\t ->
       case next x t of
         Ok y -> next (f y) t
         Error f -> Error f
-        Blocked p -> Blocked (p >>= parse . f)
-    }
+        Blocked p -> Blocked (p >>= parse . f))
 
 {-# INLINE lookZero #-}
 lookZero :: Parser p => Look p a
-lookZero = Look mzero (\_ -> Error (\_ -> id))
+lookZero = look mzero (\_ -> Error (\_ -> id))
 
 {-# INLINE lookChoice #-}
 lookChoice :: Parser p => Look p a -> Look p a -> Look p a
 p `lookChoice` q =
-  Look {
-    parse = look (\t -> next p t `resultChoice` next q t),
-    next = \t -> next p t `resultChoice` next q t
-    }
+  look
+    (peek >>= \t -> execute (next p t `resultChoice` next q t))
+    (\t -> next p t `resultChoice` next q t)
   where
     {-# INLINE resultChoice #-}
     resultChoice (Ok x) _ = Ok x
@@ -78,7 +75,7 @@ p `lookChoice` q =
 
 {-# INLINE lookPeek #-}
 lookPeek :: Parser p => Look p (Maybe (Token (StreamType p)))
-lookPeek = Look peek Ok
+lookPeek = look peek Ok
 
 {-# INLINE lookGetInput #-}
 lookGetInput :: Parser p => Look p (StreamType p)
@@ -91,33 +88,30 @@ lookPutInput inp = fromParser (putInput inp)
 {-# INLINE lookNote #-}
 lookNote :: Parser p => Look p a -> String -> Look p a
 lookNote p x =
-  p {
-    parse = parse p <?> x,
-    next = \t ->
+  look
+    (parse p <?> x)
+    (\t ->
       case next p t of
         Ok x -> Ok x
         Error f -> Error (\n errs -> Expected n x:f n errs)
-        Blocked p -> Blocked (p <?> x)
-    }
+        Blocked p -> Blocked (p <?> x))
 
 {-# INLINE lookSuccess #-}
 lookSuccess :: Parser p => Look p a -> Look p a
 lookSuccess p =
-  p {
-    parse = success (parse p),
-    next = \t -> inBlocked success (next p t)
-    }
+  look
+    (success (parse p))
+    (\t -> inBlocked success (next p t))
 
 {-# INLINE lookProgress #-}
 lookProgress :: Parser p => Look p a -> Look p a
 lookProgress p =
-  p {
-    parse = progress (parse p),
-    next = \t ->
-      case inBlocked progress (next p t) of 
+  look
+    (progress (parse p))
+    (\t ->
+      case inBlocked progress (next p t) of
         Ok _ -> Error (\_ _ -> [])
-        x -> x
-    }
+        x -> x)
 
 {-# INLINE lookRun #-}
 lookRun :: Parser p => Look p a -> StreamType p -> Class.Result a
