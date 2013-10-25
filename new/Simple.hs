@@ -15,13 +15,13 @@ type CPS s a r =
   -> Reply r             -- err: failure
   -> s -> Reply r
 
-type Reply a = () -> Result a
+type Reply a = Result a
 data Result a = Ok a | Error deriving Show
 
 -- Eta-expanding smart constructors.
 {-# INLINE cpsEta #-}
 cpsEta :: CPS s a r -> CPS s a r
-cpsEta p = \ok err inp _ -> p (\x inp' _ -> ok x inp' ()) (\_ -> err ()) inp ()
+cpsEta p = \ok err inp -> p (\x inp' -> ok x inp') err inp
 
 {-# INLINE parser #-}
 parser :: (forall r. CPS s a r) -> Simple s a
@@ -59,12 +59,12 @@ parserPutInput inp = parser (\ok err _ -> ok () inp)
 
 {-# INLINE parserSuccess #-}
 parserSuccess :: Simple s a -> Simple s a
-parserSuccess p = parser (\ok err -> runParser p ok (\_ -> Error))
+parserSuccess p = parser (\ok err -> runParser p ok Error)
 
 {-# INLINE parserRun #-}
 parserRun :: Simple s a -> s -> Maybe a
 parserRun p inp =
-  case runParser p (\x _ _ -> Ok x) (\_ -> Error) inp () of
+  case runParser p (\x _ -> Ok x) Error inp of
     Ok x -> Just x
     Error -> Nothing
 
