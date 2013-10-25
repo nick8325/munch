@@ -38,21 +38,27 @@ lookReturn x =
     feed = \_ -> return x
     }
 
-{-# INLINE lookBind #-}
+{-# INLINE[0] lookBind #-}
 lookBind :: Parser p => Look p a -> (a -> Look p b) -> Look p b
 x `lookBind` f =
   Look {
-    here = here x >>= here . f,
-    look = kindBind,
-    feed = \t -> feed x t >>= here . f
+    here = hereBind x f,
+    look = kindBind x f,
+    feed = feedBind x f
     }
-  where
-    {-# INLINE kindBind #-}
-    kindBind t =
-      case look x t of
-        Ok x -> look (f x) t
-        Error -> Error
-        Block -> Block
+
+{-# INLINE hereBind #-}
+hereBind x f = here x >>= here . f
+
+{-# INLINE kindBind #-}
+kindBind x f = \t ->
+  case look x t of
+    Ok x -> look (f x) t
+    Error -> Error
+    Block -> Block
+
+{-# INLINE[0] feedBind #-}
+feedBind x f = \t -> feed x t >>= here . f
 
 {-# INLINE lookZero #-}
 lookZero :: Parser p => Look p a
@@ -67,10 +73,13 @@ lookZero =
 lookChoice :: Parser p => Look p a -> Look p a -> Look p a
 p `lookChoice` q = 
   Look {
-    here = do { t <- peek; (p `feedChoice` q) t },
-    look = \t -> (p `kindChoice` q) t,
-    feed = \t -> (p `feedChoice` q) t
+    here = hereChoice p q,
+    look = p `kindChoice` q,
+    feed = p `feedChoice` q
     }
+
+{-# INLINE[0] hereChoice #-}
+hereChoice p q = do { t <- peek; (p `feedChoice` q) t }
 
 {-# INLINE kindChoice #-}
 kindChoice :: Parser p => Look p a -> Look p a -> Maybe (Token (StreamType p)) -> Kind a
@@ -126,7 +135,7 @@ lookProgress p =
     {-# INLINE kindProgress #-}
     kindProgress t =
       case look p t of
-        Ok{} -> error "Parser has gone into infinite loop"
+        Ok{} -> Error
         x -> x
 
 {-# INLINE lookRun #-}
