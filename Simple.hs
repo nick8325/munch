@@ -68,20 +68,23 @@ parserRun p inp =
     Ok x -> Just x
     Error -> Nothing
 
-instance Functor (Simple s) where fmap = liftM
-instance Applicative (Simple s) where
+instance Stream s => Functor (Simple s) where
+  fmap = liftM
+instance Stream s => Applicative (Simple s) where
   pure = return
   (<*>) = ap
+  (*>) = (>>)
+  (<*) = followedBy
 instance Stream s => Alternative (Simple s) where
   empty = mzero
   (<|>) = mplus
   some = parseSome
   many = parseMany
-instance Monad (Simple s) where
+instance Stream s => Monad (Simple s) where
   return = parserReturn
   (>>=) = parserBind
   fail _ = parserZero
-instance MonadPlus (Simple s) where
+instance Stream s => MonadPlus (Simple s) where
   mzero = parserZero
   mplus = parserChoice
 instance Stream s => Parser (Simple s) where
@@ -90,5 +93,4 @@ instance Stream s => Parser (Simple s) where
   putInput = parserPutInput
   success = parserSuccess
   run = parserRun
-  {-# INLINE eta #-}
-  eta p = parser (runParser p)
+  eta = \p -> parser (runParser p)

@@ -4,6 +4,10 @@ import Control.Applicative
 import Control.Monad
 import Class
 
+{-# INLINE followedBy #-}
+followedBy :: Monad m => m a -> m b -> m a
+p `followedBy` q = do { x <- p; q; return x }
+
 {-# INLINE parseSome #-}
 parseSome :: Parser p => p a -> p [a]
 parseSome p = do { x <- p; xs <- many p; return (x:xs) }
