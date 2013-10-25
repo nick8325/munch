@@ -1,4 +1,4 @@
-module Brackets where
+module Examples.Brackets where
 
 import Control.Applicative
 import Class
