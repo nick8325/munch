@@ -6,9 +6,6 @@ import qualified Data.ByteString.Char8 as B
 
 class Stream a where
   type Token a
-  {-# INLINE hd #-}
-  hd :: a -> Maybe (Token a)
-  hd = fmap fst . uncons
   uncons :: a -> Maybe (Token a, a)
 
 instance Stream [a] where
@@ -33,7 +30,5 @@ headed x =
 
 instance Stream HeadedBS where
   type Token HeadedBS = Char
-  {-# INLINE hd #-}
-  hd (Headed c _) = Just c
   {-# INLINE uncons #-}
   uncons (Headed c bs) = Just (c, headed bs)
