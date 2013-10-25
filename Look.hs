@@ -67,7 +67,11 @@ kindBind x f = \t ->
     Block -> Block
 
 {-# INLINE[0] feedBind #-}
-feedBind x f = \t -> feed x t >>= here . f
+feedBind x f = \t ->
+  case look x t of
+    Ok x -> feed (f x) t
+    Error -> mzero
+    Block -> feed x t >>= here . f
 
 {-# INLINE lookZero #-}
 lookZero :: Parser p => Look p a
@@ -149,6 +153,11 @@ lookProgress p =
       case look p t of
         Ok{} -> Error
         x -> x
+    {-# INLINE feedProgress #-}
+    feedProgress t =
+      case look p t of
+        Ok{} -> mzero
+        _ -> feed p t
 
 {-# INLINE lookRun #-}
 lookRun :: Parser p => Look p a -> StreamType p -> Maybe a
