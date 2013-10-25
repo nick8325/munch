@@ -1,0 +1,4 @@
+* Error messages.
+* Stream instance for Text.
+* Incrementality (checkpoints).
+* Add Parser a b -> a -> [(a,b)] and (a -> [(a, b)]) -> Parser a b functions.
