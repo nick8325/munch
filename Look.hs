@@ -20,34 +20,34 @@ data Result p a  =
   | Error
   | Blocked (p a)
 
-{-# INLINE CONLIKE inBlocked #-}
+{-# INLINE inBlocked #-}
 inBlocked :: (p a -> p a) -> Result p a -> Result p a
 inBlocked f (Blocked x) = Blocked (f x)
 inBlocked _ x = x
 
-{-# INLINE CONLIKE lookEta #-}
+{-# INLINE lookEta #-}
 lookEta :: Parser p => Look p a -> Look p a
 lookEta (Look p pr) = Look (eta p) (\t -> inBlocked eta (pr t))
 
-{-# INLINE CONLIKE look #-}
+{-# INLINE look #-}
 look :: Parser p => (NextToken p -> Result p a) -> p a
 look p = peek >>= execute . p
 
-{-# INLINE CONLIKE execute #-}
+{-# INLINE execute #-}
 execute :: Parser p => Result p a -> p a
 execute (Ok x) = return x
 execute Error = mzero
 execute (Blocked p) = p
 
-{-# INLINE CONLIKE fromParser #-}
+{-# INLINE fromParser #-}
 fromParser :: Parser p => p a -> Look p a
 fromParser p = Look p (\_ -> Blocked p)
 
-{-# INLINE CONLIKE lookReturn #-}
+{-# INLINE lookReturn #-}
 lookReturn :: Parser p => a -> Look p a
 lookReturn x = Look (return x) (\_ -> Ok x)
 
-{-# INLINE CONLIKE lookBind #-}
+{-# INLINE lookBind #-}
 lookBind :: Parser p => Look p a -> (a -> Look p b) -> Look p b
 x `lookBind` f =
   Look {
@@ -59,11 +59,11 @@ x `lookBind` f =
         Blocked p -> Blocked (p >>= parse . f)
     }
 
-{-# INLINE CONLIKE lookZero #-}
+{-# INLINE lookZero #-}
 lookZero :: Parser p => Look p a
 lookZero = Look mzero (\_ -> Error)
 
-{-# INLINE CONLIKE lookChoice #-}
+{-# INLINE lookChoice #-}
 lookChoice :: Parser p => Look p a -> Look p a -> Look p a
 p `lookChoice` q =
   Look {
@@ -77,19 +77,19 @@ p `lookChoice` q =
     resultChoice x Error = x
     resultChoice p q = Blocked (execute p `mplus` execute q)
 
-{-# INLINE CONLIKE lookPeek #-}
+{-# INLINE lookPeek #-}
 lookPeek :: Parser p => Look p (Maybe (Token (StreamType p)))
 lookPeek = Look peek Ok
 
-{-# INLINE CONLIKE lookGetInput #-}
+{-# INLINE lookGetInput #-}
 lookGetInput :: Parser p => Look p (StreamType p)
 lookGetInput = fromParser getInput
 
-{-# INLINE CONLIKE lookPutInput #-}
+{-# INLINE lookPutInput #-}
 lookPutInput :: Parser p => StreamType p -> Look p ()
 lookPutInput inp = fromParser (putInput inp)
 
-{-# INLINE CONLIKE lookSuccess #-}
+{-# INLINE lookSuccess #-}
 lookSuccess :: Parser p => Look p a -> Look p a
 lookSuccess p =
   p {
@@ -97,7 +97,7 @@ lookSuccess p =
     next = \t -> inBlocked success (next p t)
     }
 
-{-# INLINE CONLIKE lookProgress #-}
+{-# INLINE lookProgress #-}
 lookProgress :: Parser p => Look p a -> Look p a
 lookProgress p =
   p {
@@ -108,56 +108,56 @@ lookProgress p =
         x -> x
     }
 
-{-# INLINE CONLIKE lookRun #-}
+{-# INLINE lookRun #-}
 lookRun :: Parser p => Look p a -> StreamType p -> Maybe a
 lookRun p inp = run (parse p) inp
 
 instance Parser p => Functor (Look p) where
-  {-# INLINE CONLIKE fmap #-}
+  {-# INLINE fmap #-}
   fmap f mx = do { x <- mx; return (f x) }
 instance Parser p => Applicative (Look p) where
-  {-# INLINE CONLIKE pure #-}
+  {-# INLINE pure #-}
   pure x = return x
-  {-# INLINE CONLIKE (<*>) #-}
+  {-# INLINE (<*>) #-}
   mf <*> mx = do { f <- mf; x <- mx; return (f x) }
-  {-# INLINE CONLIKE (*>) #-}
+  {-# INLINE (*>) #-}
   x *> y = x >> y
-  {-# INLINE CONLIKE (<*) #-}
+  {-# INLINE (<*) #-}
   mx <* my = do { x <- mx; my; return x }
 instance Parser p => Alternative (Look p) where
-  {-# INLINE CONLIKE empty #-}
+  {-# INLINE empty #-}
   empty = mzero
-  {-# INLINE CONLIKE (<|>) #-}
+  {-# INLINE (<|>) #-}
   x <|> y = x `mplus` y
-  {-# INLINE CONLIKE some #-}
+  {-# INLINE some #-}
   some p = parseSome p
-  {-# INLINE CONLIKE many #-}
+  {-# INLINE many #-}
   many p = parseMany p
 instance Parser p => Monad (Look p) where
-  {-# INLINE CONLIKE return #-}
+  {-# INLINE return #-}
   return x = lookReturn x
-  {-# INLINE CONLIKE (>>=) #-}
+  {-# INLINE (>>=) #-}
   x >>= f = x `lookBind` f
-  {-# INLINE CONLIKE fail #-}
+  {-# INLINE fail #-}
   fail _ = lookZero
 instance Parser p => MonadPlus (Look p) where
-  {-# INLINE CONLIKE mzero #-}
+  {-# INLINE mzero #-}
   mzero = lookZero
-  {-# INLINE CONLIKE mplus #-}
+  {-# INLINE mplus #-}
   x `mplus` y = x `lookChoice` y
 instance Parser p => Parser (Look p) where
   type StreamType (Look p) = StreamType p
-  {-# INLINE CONLIKE peek #-}
+  {-# INLINE peek #-}
   peek = lookPeek
-  {-# INLINE CONLIKE getInput #-}
+  {-# INLINE getInput #-}
   getInput = lookGetInput
-  {-# INLINE CONLIKE putInput #-}
+  {-# INLINE putInput #-}
   putInput x = lookPutInput x
-  {-# INLINE CONLIKE success #-}
+  {-# INLINE success #-}
   success p = lookSuccess p
-  {-# INLINE CONLIKE progress #-}
+  {-# INLINE progress #-}
   progress p = lookProgress p
-  {-# INLINE CONLIKE run #-}
+  {-# INLINE run #-}
   run p s = lookRun p s
-  {-# INLINE CONLIKE eta #-}
+  {-# INLINE eta #-}
   eta = lookEta
