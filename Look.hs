@@ -82,6 +82,14 @@ p `resultChoice` q = \t ->
     (Block p, Ok x) -> Block (p `mplus` return x)
     (Block p, Block q) -> Block (p `mplus` q)
 
+{-# INLINE lookPeek #-}
+lookPeek :: Parser p => Look p (Maybe (Token (StreamType p)))
+lookPeek =
+  Look {
+    here = peek,
+    feed = Ok
+    }
+
 {-# INLINE lookGetInput #-}
 lookGetInput :: Parser p => Look p (StreamType p)
 lookGetInput = active getInput
@@ -126,6 +134,7 @@ instance Parser p => MonadPlus (Look p) where
   mplus = lookChoice
 instance Parser p => Parser (Look p) where
   type StreamType (Look p) = StreamType p
+  peek = lookPeek
   getInput = lookGetInput
   putInput = lookPutInput
   success = lookSuccess
