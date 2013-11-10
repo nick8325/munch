@@ -14,6 +14,7 @@ instance Stream [a] where
   {-# INLINE uncons #-}
   uncons [] = Nothing
   uncons (x:xs) = Just (x, xs)
+  pos x = - (length x)
 
 instance Stream B.ByteString where
   type Token B.ByteString = Char

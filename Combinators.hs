@@ -6,11 +6,15 @@ import Control.Monad
 import Class
 import Stream
 
+{-# INLINE (<?>) #-}
+(<?>) :: Parser p => p a -> String -> p a
+p <?> x = expected (x:) p
+
 {-# INLINE eof #-}
 eof :: Parser p => p ()
-eof = do
+eof = (do
   Nothing <- peek
-  return ()
+  return ()) <?> "end of file"
 
 {-# INLINE skipSome #-}
 skipSome :: Parser p => p a -> p ()
@@ -32,6 +36,7 @@ sepBy1 it sep = liftM2 (:) it (many (sep >> it))
 next :: Parser p => p ()
 next = do
   Just{} <- peek
+  munch
   Just (_, inp) <- fmap uncons getInput
   putInput inp
 
@@ -40,6 +45,7 @@ satisfy :: Parser p => (Token (StreamType p) -> Bool) -> p (Token (StreamType p)
 satisfy p = do
   Just x <- peek
   guard (p x)
+  munch
   Just (_, inp) <- fmap uncons getInput
   putInput inp
   return x

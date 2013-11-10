@@ -6,8 +6,8 @@ import Control.Applicative
 import Control.Monad
 import Stream
 
-data Result a = Ok a | Error [Error] deriving Show
-data Error = Expected Int String deriving Show
+data Result a = Ok a | Error Trace deriving Show
+data Trace = Expected {-# UNPACK #-} !Int [String] deriving Show
 
 class (Functor m, Applicative m, Alternative m, Monad m, MonadPlus m,
        Stream (StreamType m)) => Parser m where
@@ -20,10 +20,7 @@ class (Functor m, Applicative m, Alternative m, Monad m, MonadPlus m,
   getInput :: m (StreamType m)
   putInput :: StreamType m -> m ()
 
-  (<?>) :: m a -> String -> m a
-  p <?> x = p
-
-  expected :: (Int -> [Error] -> [Error]) -> m a -> m a
+  expected :: ([String] -> [String]) -> m a -> m a
   expected _ p = p
 
   success :: m a -> m a
@@ -33,5 +30,8 @@ class (Functor m, Applicative m, Alternative m, Monad m, MonadPlus m,
   -- Used to help the simplifier.
   progress :: m a -> m a
   progress = id
+
+  munch :: m ()
+  munch = return ()
 
   run :: m a -> StreamType m -> Result a

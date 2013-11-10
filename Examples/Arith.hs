@@ -1,16 +1,18 @@
-{-# LANGUAGE Rank2Types, NoMonomorphismRestriction #-}
-module Main(main) where
+module Examples.Arith where
 
-import Run
-import qualified Data.ByteString.Char8 as BS
+import Control.Applicative
+import Class
+import Combinators
+import Simple
+import Look
+import qualified Data.ByteString.Char8 as B
 import Data.Maybe
 import Data.Char
 
+expr, term, fact :: Look (Simple B.ByteString) ()
 expr = chainl1 term ((+) <$ char '+' <|> (-) <$ char '-')
-
 term = chainl1 fact ((*) <$ char '*' <|> div <$ char '/')
-
-fact = checkpoint *> fmap (fst . fromJust . BS.readInt) (takeWhile1 isDigit) <|> char '(' *> expr <* char ')'
+fact = fmap (fst . fromJust . B.readInt) (takeWhile1 isDigit) <|> char '(' *> expr <* char ')'
 
 {-# INLINE chainl1 #-}
 chainl1 p op = p >>= rest where
@@ -18,6 +20,3 @@ chainl1 p op = p >>= rest where
               y <- p
               rest $! (f x y)
            <|> pure x
-
-main :: IO ()
-main = go expr "testdata/arith"

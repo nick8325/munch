@@ -1,18 +1,19 @@
-module Prolog where
+module Examples.Prolog where
 
--- import Prelude hiding (takeWhile)
-import Data.Char
--- import qualified Data.ByteString.Char8 as BS
--- import Run
-import Control.Monad
 import Control.Applicative
-import Parsec
-import Instances
+import Control.Monad
+import Class
+import Combinators
+import Simple(Simple)
+import Look
+import qualified Data.ByteString.Char8 as B
+import Data.Maybe
+import Data.Char
 
 data Expr = Var Char | Fun Char [Expr]
 
-parser :: Parsec Chars Expr
-parser = checkpoint *> spaced (fmap Var var <|> liftM2 Fun fun args <|> parens parser)
+parser :: Look (Simple B.ByteString) Expr
+parser = spaced (fmap Var var <|> liftM2 Fun fun args <|> parens parser)
 
 {-# INLINE satisfy_ #-}
 satisfy_ p = satisfy p >> return ()
@@ -36,5 +37,3 @@ isLower' c = c >= 'a' && c <= 'z'
 args = spaced (parens (sepBy1 parser (spaced comma)) <|> return [])
 {-# INLINE comma #-}
 comma = satisfy (== ',') <?> "comma"
-
--- main = go (skipMany parser) "testdata/prolog"

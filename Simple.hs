@@ -12,15 +12,18 @@ newtype Simple s a = Simple (forall r. CPS s a r)
 
 type CPS s a r =
      (a -> s -> Reply r)  -- ok: success
-  -> ([Error] -> Reply r) -- err: failure
-  -> [Error] -> s -> Reply r
+  -> (Trace -> Result r) -- err: failure
+  -> s -> Reply r
 
-type Reply a = () -> Result a
+type Reply a = Int -> [String] -> Trace -> Result a
+  -- First arg: relative offset to current position where last trace occurred
+  -- Second arg: trace for before the current position
+  -- Third arg: a trace that could be anywhere
 
 -- Eta-expanding smart constructors.
 {-# INLINE cpsEta #-}
 cpsEta :: CPS s a r -> CPS s a r
-cpsEta p = \ok err errs inp x -> p ok (\errs x -> err errs x) errs inp x
+cpsEta p = \ok err inp n here there -> p ok (\tr -> err tr) inp n here there
 
 {-# INLINE parser #-}
 parser :: (forall r. CPS s a r) -> Simple s a
@@ -32,46 +35,60 @@ runParser (Simple p) = cpsEta p
 
 {-# INLINE parserReturn #-}
 parserReturn :: a -> Simple s a
-parserReturn x = parser (\ok err errs -> ok x)
+parserReturn x = parser (\ok err -> ok x)
 
 {-# INLINE parserBind #-}
 parserBind :: Simple s a -> (a -> Simple s b) -> Simple s b
 p `parserBind` f =
-  parser (\ok err errs -> runParser p (\x -> runParser (f x) ok err errs) err errs)
+  parser (\ok err -> runParser p (\x -> runParser (f x) ok err) err)
 
 {-# INLINE parserZero #-}
-parserZero :: Simple s a
-parserZero = parser (\ok err errs inp -> err errs)
+parserZero :: Stream s => Simple s a
+parserZero = parser (\ok err inp n here there -> err $! (merge $! makeHere n (pos inp) here) there)
+  where
+    {-# INLINE makeHere #-}
+    makeHere p n xs = Expected (p-n) xs
+
+{-# NOINLINE merge #-}
+merge (Expected p xs) (Expected p' ys) =
+  case compare p p' of
+    LT -> Expected p' ys
+    EQ -> Expected p (xs ++ ys)
+    GT -> Expected p xs
 
 {-# INLINE parserChoice #-}
 parserChoice :: Simple s a -> Simple s a -> Simple s a
 p `parserChoice` q =
-  parser (\ok err errs inp -> runParser p ok (\errs -> runParser q ok err errs inp) errs inp)
+  parser (\ok err inp -> runParser p ok (runParser q ok err inp 999999999 []) inp)
 
 {-# INLINE parserGetInput #-}
 parserGetInput :: Simple s s
-parserGetInput = parser (\ok err errs inp -> ok inp inp)
+parserGetInput = parser (\ok err inp -> ok inp inp)
 
 {-# INLINE parserPutInput #-}
 parserPutInput :: s -> Simple s ()
-parserPutInput inp = parser (\ok err _ _ -> ok () inp)
-
-{-# INLINE parserNote #-}
-parserNote :: Stream s => Simple s a -> String -> Simple s a
-parserNote p x = parserExpected (\n errs -> Expected n x:errs) p
+parserPutInput inp = parser (\ok err _ -> ok () inp)
 
 {-# INLINE parserExpected #-}
-parserExpected :: Stream s => (Int -> [Error] -> [Error]) -> Simple s a -> Simple s a
-parserExpected f p = parser (\ok err errs inp -> runParser p ok err (f (pos inp) errs) inp)
+parserExpected :: Stream s => ([String] -> [String]) -> Simple s a -> Simple s a
+parserExpected f p = parser (\ok err inp n here -> runParser p ok err inp 0 $! merge n here)
+  where
+    {-# INLINE merge #-}
+    merge 0 here = f here
+    merge _ _ = f []
+
+{-# INLINE parserMunch #-}
+parserMunch :: Stream s => Simple s ()
+parserMunch = parser (\ok err inp n -> ok () inp (n+1))
 
 {-# INLINE parserSuccess #-}
 parserSuccess :: Simple s a -> Simple s a
-parserSuccess p = parser (\ok err errs -> runParser p ok (\errs _ -> Error errs) [])
+parserSuccess p = parser (\ok err -> runParser p ok Error)
 
 {-# INLINE parserRun #-}
 parserRun :: Simple s a -> s -> Result a
 parserRun p inp =
-  runParser p (\x _ _ -> Ok x) (\errs _ -> Error errs) [] inp ()
+  runParser p (\x _ _ _ _ -> Ok x) Error inp 999999999 [] (Expected (-99999999999) [])
 
 instance Stream s => Functor (Simple s) where
   fmap = liftM
@@ -96,7 +113,7 @@ instance Stream s => Parser (Simple s) where
   type StreamType (Simple s) = s
   getInput = parserGetInput
   putInput = parserPutInput
-  (<?>) = parserNote
   expected = parserExpected
   success = parserSuccess
   run = parserRun
+  munch = parserMunch
