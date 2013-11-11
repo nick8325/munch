@@ -16,5 +16,5 @@ test theFile p = do
   hSetBuffering stdout LineBuffering
   prog <- getProgName
   file <- theFile
-  -- replicateM_ 100 (print (Class.run p file))
+  print (Class.run p file)
   defaultMain [bench prog (whnf (Class.run p) file)]

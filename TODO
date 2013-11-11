@@ -6,3 +6,6 @@
 * Stream instance for Text.
 * Incrementality (checkpoints).
 * Add Parser a b -> a -> [(a,b)] and (a -> [(a, b)]) -> Parser a b functions.
+* Error messages: in Look.hs, we
+  assume that any blocking parser is going to consume its input
+  (by using expected f p instead of expected f mzero `mplus` p). Fix that.
