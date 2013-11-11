@@ -15,8 +15,8 @@ type CPS s a r =
   -> (Trace -> Result r) -- err: failure
   -> s -> Reply r
 
-type Reply a = Int -> [String] -> Trace -> Result a
-  -- First/second arg: possible trace from current "thread"
+type Reply a = Int -> Trace -> Trace -> Result a
+  -- First arg: possible trace from current "thread"
   -- Second arg: a trace that could be anywhere
 
 -- Eta-expanding smart constructors.
@@ -43,12 +43,9 @@ p `parserBind` f =
 
 {-# INLINE parserZero #-}
 parserZero :: Stream s => Simple s a
-parserZero = parser (\ok err inp n here there -> err $! makeErr (pos inp) n here there)
+parserZero = parser (\ok err inp m here there -> err $! merge here there)
 
-{-# NOINLINE makeErr #-}
-makeErr p n here there = merge (Expected (p-n) here) there
-
-{-# INLINE merge #-}
+{-# NOINLINE merge #-}
 merge (Expected p xs) (Expected p' ys) =
   case compare p p' of
     LT -> Expected p' ys
@@ -58,11 +55,11 @@ merge (Expected p xs) (Expected p' ys) =
 {-# INLINE parserChoice #-}
 parserChoice :: Simple s a -> Simple s a -> Simple s a
 p `parserChoice` q =
-  parser (\ok err inp -> runParser p ok (runParser q ok err inp 0 []) inp)
+  parser (\ok err inp m -> runParser p ok (runParser q ok err inp m (Expected 0 [])) inp m)
 
 {-# INLINE parserGetInput #-}
 parserGetInput :: Simple s s
-parserGetInput = parser (\ok err inp -> ok inp inp)
+parserGetInput = parser (\ok err inp m -> ok inp inp $! m)
 
 {-# INLINE parserPutInput #-}
 parserPutInput :: s -> Simple s ()
@@ -70,11 +67,11 @@ parserPutInput inp = parser (\ok err _ -> ok () inp)
 
 {-# INLINE parserExpected #-}
 parserExpected :: Stream s => ([String] -> [String]) -> Simple s a -> Simple s a
-parserExpected f p = parser (\ok err inp n here -> runParser p ok err inp 0 (f []))
+parserExpected f p = parser (\ok err inp m here -> runParser p ok err inp m (Expected m (f [])))
 
 {-# INLINE parserMunch #-}
 parserMunch :: Stream s => Simple s ()
-parserMunch = parser (\ok err inp n -> ok () inp (n+1))
+parserMunch = parser (\ok err inp m -> ok () inp $! m+1)
 
 {-# INLINE parserSuccess #-}
 parserSuccess :: Simple s a -> Simple s a
@@ -83,7 +80,7 @@ parserSuccess p = parser (\ok err -> runParser p ok Error)
 {-# INLINE parserRun #-}
 parserRun :: Simple s a -> s -> Result a
 parserRun p inp =
-  runParser p (\x _ _ _ _ -> Ok x) Error inp 0 [] (Expected (-99999999999) [])
+  runParser p (\x _ _ _ _ -> Ok x) Error inp 0 (Expected 0 []) (Expected 0 [])
 
 instance Stream s => Functor (Simple s) where
   fmap = liftM
